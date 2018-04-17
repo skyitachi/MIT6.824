@@ -1,0 +1,508 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+AddServer	labrpc/labrpc.go	/^func (rn *Network) AddServer(servername interface{}, rs *Server) {$/;"	f
+AddService	labrpc/labrpc.go	/^func (rs *Server) AddService(svc *Service) {$/;"	f
+All	kvraft/config.go	/^func (cfg *config) All() []int {$/;"	f
+All	shardmaster/config.go	/^func (cfg *config) All() []int {$/;"	f
+Append	kvraft/client.go	/^func (ck *Clerk) Append(key string, value string) {$/;"	f
+Append	kvraft/test_test.go	/^func Append(cfg *config, ck *Clerk, key string, value string) {$/;"	f
+Append	shardkv/client.go	/^func (ck *Clerk) Append(key string, value string) {$/;"	f
+ApplyMsg	raft/raft.go	/^type ApplyMsg struct {$/;"	t
+Call	labrpc/labrpc.go	/^func (e *ClientEnd) Call(svcMeth string, args interface{}, reply interface{}) bool {$/;"	f
+CallEvent	linearizability/model.go	/^	CallEvent   EventKind = false$/;"	c
+CheckEvents	linearizability/linearizability.go	/^func CheckEvents(model Model, history []Event) bool {$/;"	f
+CheckEventsTimeout	linearizability/linearizability.go	/^func CheckEventsTimeout(model Model, history []Event, timeout time.Duration) bool {$/;"	f
+CheckOperations	linearizability/linearizability.go	/^func CheckOperations(model Model, history []Operation) bool {$/;"	f
+CheckOperationsTimeout	linearizability/linearizability.go	/^func CheckOperationsTimeout(model Model, history []Operation, timeout time.Duration) bool {$/;"	f
+Cleanup	labrpc/labrpc.go	/^func (rn *Network) Cleanup() {$/;"	f
+CleanupFiles	mapreduce/master_splitmerge.go	/^func (mr *Master) CleanupFiles() {$/;"	f
+Clerk	kvraft/client.go	/^type Clerk struct {$/;"	t
+Clerk	shardkv/client.go	/^type Clerk struct {$/;"	t
+Clerk	shardmaster/client.go	/^type Clerk struct {$/;"	t
+ClientEnd	labrpc/labrpc.go	/^type ClientEnd struct {$/;"	t
+Config	shardmaster/common.go	/^type Config struct {$/;"	t
+Connect	labrpc/labrpc.go	/^func (rn *Network) Connect(endname interface{}, servername interface{}) {$/;"	f
+ConnectAll	kvraft/config.go	/^func (cfg *config) ConnectAll() {$/;"	f
+ConnectAll	shardmaster/config.go	/^func (cfg *config) ConnectAll() {$/;"	f
+ConnectClient	kvraft/config.go	/^func (cfg *config) ConnectClient(ck *Clerk, to []int) {$/;"	f
+ConnectClient	shardmaster/config.go	/^func (cfg *config) ConnectClient(ck *Clerk, to []int) {$/;"	f
+ConnectClientUnlocked	kvraft/config.go	/^func (cfg *config) ConnectClientUnlocked(ck *Clerk, to []int) {$/;"	f
+ConnectClientUnlocked	shardmaster/config.go	/^func (cfg *config) ConnectClientUnlocked(ck *Clerk, to []int) {$/;"	f
+Copy	raft/persister.go	/^func (ps *Persister) Copy() *Persister {$/;"	f
+DPrintf	kvraft/server.go	/^func DPrintf(format string, a ...interface{}) (n int, err error) {$/;"	f
+DPrintf	raft/util.go	/^func DPrintf(format string, a ...interface{}) (n int, err error) {$/;"	f
+Debug	kvraft/server.go	/^const Debug = 0$/;"	c
+Debug	raft/util.go	/^const Debug = 0$/;"	c
+Decode	labgob/labgob.go	/^func (dec *LabDecoder) Decode(e interface{}) error {$/;"	f
+DeleteServer	labrpc/labrpc.go	/^func (rn *Network) DeleteServer(servername interface{}) {$/;"	f
+DisconnectClient	kvraft/config.go	/^func (cfg *config) DisconnectClient(ck *Clerk, from []int) {$/;"	f
+DisconnectClient	shardmaster/config.go	/^func (cfg *config) DisconnectClient(ck *Clerk, from []int) {$/;"	f
+DisconnectClientUnlocked	kvraft/config.go	/^func (cfg *config) DisconnectClientUnlocked(ck *Clerk, from []int) {$/;"	f
+DisconnectClientUnlocked	shardmaster/config.go	/^func (cfg *config) DisconnectClientUnlocked(ck *Clerk, from []int) {$/;"	f
+Distributed	mapreduce/master.go	/^func Distributed(jobName string, files []string, nreduce int, master string) (mr *Master) {$/;"	f
+DoTask	mapreduce/worker.go	/^func (wk *Worker) DoTask(arg *DoTaskArgs, _ *struct{}) error {$/;"	f
+DoTaskArgs	mapreduce/common_rpc.go	/^type DoTaskArgs struct {$/;"	t
+Enable	labrpc/labrpc.go	/^func (rn *Network) Enable(endname interface{}, enabled bool) {$/;"	f
+Encode	labgob/labgob.go	/^func (enc *LabEncoder) Encode(e interface{}) error {$/;"	f
+EncodeValue	labgob/labgob.go	/^func (enc *LabEncoder) EncodeValue(value reflect.Value) error {$/;"	f
+Err	kvraft/common.go	/^type Err string$/;"	t
+Err	shardkv/common.go	/^type Err string$/;"	t
+Err	shardmaster/common.go	/^type Err string$/;"	t
+ErrNoKey	kvraft/common.go	/^	ErrNoKey = "ErrNoKey"$/;"	c
+ErrNoKey	shardkv/common.go	/^	ErrNoKey      = "ErrNoKey"$/;"	c
+ErrWrongGroup	shardkv/common.go	/^	ErrWrongGroup = "ErrWrongGroup"$/;"	c
+Event	linearizability/model.go	/^type Event struct {$/;"	t
+EventKind	linearizability/model.go	/^type EventKind bool$/;"	t
+GenericTest	kvraft/test_test.go	/^func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash bool, partitions bool, maxraftstate int) {$/;"	f
+GenericTestLinearizability	kvraft/test_test.go	/^func GenericTestLinearizability(t *testing.T, part string, nclients int, nservers int, unreliable bool, crash bool, partitions bool, maxraftstate int) {$/;"	f
+Get	kvraft/client.go	/^func (ck *Clerk) Get(key string) string {$/;"	f
+Get	kvraft/server.go	/^func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {$/;"	f
+Get	kvraft/test_test.go	/^func Get(cfg *config, ck *Clerk, key string) string {$/;"	f
+Get	shardkv/client.go	/^func (ck *Clerk) Get(key string) string {$/;"	f
+Get	shardkv/server.go	/^func (kv *ShardKV) Get(args *GetArgs, reply *GetReply) {$/;"	f
+GetArgs	kvraft/common.go	/^type GetArgs struct {$/;"	t
+GetArgs	shardkv/common.go	/^type GetArgs struct {$/;"	t
+GetCount	labrpc/labrpc.go	/^func (rn *Network) GetCount(servername interface{}) int {$/;"	f
+GetCount	labrpc/labrpc.go	/^func (rs *Server) GetCount() int {$/;"	f
+GetReply	kvraft/common.go	/^type GetReply struct {$/;"	t
+GetReply	shardkv/common.go	/^type GetReply struct {$/;"	t
+GetState	raft/raft.go	/^func (rf *Raft) GetState() (int, bool) {$/;"	f
+GetTotalCount	labrpc/labrpc.go	/^func (rn *Network) GetTotalCount() int {$/;"	f
+Handler1	labrpc/test_test.go	/^func (js *JunkServer) Handler1(args string, reply *int) {$/;"	f
+Handler2	labrpc/test_test.go	/^func (js *JunkServer) Handler2(args int, reply *string) {$/;"	f
+Handler3	labrpc/test_test.go	/^func (js *JunkServer) Handler3(args int, reply *int) {$/;"	f
+Handler4	labrpc/test_test.go	/^func (js *JunkServer) Handler4(args *JunkArgs, reply *JunkReply) {$/;"	f
+Handler5	labrpc/test_test.go	/^func (js *JunkServer) Handler5(args JunkArgs, reply *JunkReply) {$/;"	f
+IsServerDead	labrpc/labrpc.go	/^func (rn *Network) IsServerDead(endname interface{}, servername interface{}, server *Server) bool {$/;"	f
+Join	shardmaster/client.go	/^func (ck *Clerk) Join(servers map[int][]string) {$/;"	f
+Join	shardmaster/server.go	/^func (sm *ShardMaster) Join(args *JoinArgs, reply *JoinReply) {$/;"	f
+JoinArgs	shardmaster/common.go	/^type JoinArgs struct {$/;"	t
+JoinReply	shardmaster/common.go	/^type JoinReply struct {$/;"	t
+JunkArgs	labrpc/test_test.go	/^type JunkArgs struct {$/;"	t
+JunkReply	labrpc/test_test.go	/^type JunkReply struct {$/;"	t
+JunkServer	labrpc/test_test.go	/^type JunkServer struct {$/;"	t
+KVServer	kvraft/server.go	/^type KVServer struct {$/;"	t
+KeyValue	mapreduce/common.go	/^type KeyValue struct {$/;"	t
+Kill	kvraft/server.go	/^func (kv *KVServer) Kill() {$/;"	f
+Kill	raft/raft.go	/^func (rf *Raft) Kill() {$/;"	f
+Kill	shardkv/server.go	/^func (kv *ShardKV) Kill() {$/;"	f
+Kill	shardmaster/server.go	/^func (sm *ShardMaster) Kill() {$/;"	f
+KvInput	linearizability/models.go	/^type KvInput struct {$/;"	t
+KvModel	linearizability/models.go	/^func KvModel() Model {$/;"	f
+KvOutput	linearizability/models.go	/^type KvOutput struct {$/;"	t
+LabDecoder	labgob/labgob.go	/^type LabDecoder struct {$/;"	t
+LabEncoder	labgob/labgob.go	/^type LabEncoder struct {$/;"	t
+Leader	kvraft/config.go	/^func (cfg *config) Leader() (bool, int) {$/;"	f
+Leader	shardmaster/config.go	/^func (cfg *config) Leader() (bool, int) {$/;"	f
+Leave	shardmaster/client.go	/^func (ck *Clerk) Leave(gids []int) {$/;"	f
+Leave	shardmaster/server.go	/^func (sm *ShardMaster) Leave(args *LeaveArgs, reply *LeaveReply) {$/;"	f
+LeaveArgs	shardmaster/common.go	/^type LeaveArgs struct {$/;"	t
+LeaveReply	shardmaster/common.go	/^type LeaveReply struct {$/;"	t
+Len	linearizability/linearizability.go	/^func (a byTime) Len() int {$/;"	f
+Less	linearizability/linearizability.go	/^func (a byTime) Less(i, j int) bool {$/;"	f
+LogSize	kvraft/config.go	/^func (cfg *config) LogSize() int {$/;"	f
+LogSize	shardmaster/config.go	/^func (cfg *config) LogSize() int {$/;"	f
+LongDelays	labrpc/labrpc.go	/^func (rn *Network) LongDelays(yes bool) {$/;"	f
+LongReordering	labrpc/labrpc.go	/^func (rn *Network) LongReordering(yes bool) {$/;"	f
+Make	raft/raft.go	/^func Make(peers []*labrpc.ClientEnd, me int,$/;"	f
+MakeClerk	kvraft/client.go	/^func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {$/;"	f
+MakeClerk	shardkv/client.go	/^func MakeClerk(masters []*labrpc.ClientEnd, make_end func(string) *labrpc.ClientEnd) *Clerk {$/;"	f
+MakeClerk	shardmaster/client.go	/^func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {$/;"	f
+MakeEnd	labrpc/labrpc.go	/^func (rn *Network) MakeEnd(endname interface{}) *ClientEnd {$/;"	f
+MakeNetwork	labrpc/labrpc.go	/^func MakeNetwork() *Network {$/;"	f
+MakePersister	raft/persister.go	/^func MakePersister() *Persister {$/;"	f
+MakeServer	labrpc/labrpc.go	/^func MakeServer() *Server {$/;"	f
+MakeService	labrpc/labrpc.go	/^func MakeService(rcvr interface{}) *Service {$/;"	f
+MapFunc	mapreduce/test_test.go	/^func MapFunc(file string, value string) (res []KeyValue) {$/;"	f
+Master	mapreduce/master.go	/^type Master struct {$/;"	t
+Model	linearizability/model.go	/^type Model struct {$/;"	t
+Move	shardmaster/client.go	/^func (ck *Clerk) Move(shard int, gid int) {$/;"	f
+Move	shardmaster/server.go	/^func (sm *ShardMaster) Move(args *MoveArgs, reply *MoveReply) {$/;"	f
+MoveArgs	shardmaster/common.go	/^type MoveArgs struct {$/;"	t
+MoveReply	shardmaster/common.go	/^type MoveReply struct {$/;"	t
+NShards	shardmaster/common.go	/^const NShards = 10$/;"	c
+Network	labrpc/labrpc.go	/^type Network struct {$/;"	t
+NewDecoder	labgob/labgob.go	/^func NewDecoder(r io.Reader) *LabDecoder {$/;"	f
+NewEncoder	labgob/labgob.go	/^func NewEncoder(w io.Writer) *LabEncoder {$/;"	f
+NextValue	kvraft/test_test.go	/^func NextValue(prev string, val string) string {$/;"	f
+NoPartition	linearizability/model.go	/^func NoPartition(history []Operation) [][]Operation {$/;"	f
+NoPartitionEvent	linearizability/model.go	/^func NoPartitionEvent(history []Event) [][]Event {$/;"	f
+OK	kvraft/common.go	/^	OK       = "OK"$/;"	c
+OK	shardkv/common.go	/^	OK            = "OK"$/;"	c
+OK	shardmaster/common.go	/^	OK = "OK"$/;"	c
+Op	kvraft/server.go	/^type Op struct {$/;"	t
+Op	shardkv/server.go	/^type Op struct {$/;"	t
+Op	shardmaster/server.go	/^type Op struct {$/;"	t
+Operation	linearizability/model.go	/^type Operation struct {$/;"	t
+Parallelism	mapreduce/worker.go	/^type Parallelism struct {$/;"	t
+Persister	raft/persister.go	/^type Persister struct {$/;"	t
+ProcessReq	labrpc/labrpc.go	/^func (rn *Network) ProcessReq(req reqMsg) {$/;"	f
+Put	kvraft/client.go	/^func (ck *Clerk) Put(key string, value string) {$/;"	f
+Put	kvraft/test_test.go	/^func Put(cfg *config, ck *Clerk, key string, value string) {$/;"	f
+Put	shardkv/client.go	/^func (ck *Clerk) Put(key string, value string) {$/;"	f
+PutAppend	kvraft/client.go	/^func (ck *Clerk) PutAppend(key string, value string, op string) {$/;"	f
+PutAppend	kvraft/server.go	/^func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {$/;"	f
+PutAppend	shardkv/client.go	/^func (ck *Clerk) PutAppend(key string, value string, op string) {$/;"	f
+PutAppend	shardkv/server.go	/^func (kv *ShardKV) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {$/;"	f
+PutAppendArgs	kvraft/common.go	/^type PutAppendArgs struct {$/;"	t
+PutAppendArgs	shardkv/common.go	/^type PutAppendArgs struct {$/;"	t
+PutAppendReply	kvraft/common.go	/^type PutAppendReply struct {$/;"	t
+PutAppendReply	shardkv/common.go	/^type PutAppendReply struct {$/;"	t
+Query	shardmaster/client.go	/^func (ck *Clerk) Query(num int) Config {$/;"	f
+Query	shardmaster/server.go	/^func (sm *ShardMaster) Query(args *QueryArgs, reply *QueryReply) {$/;"	f
+QueryArgs	shardmaster/common.go	/^type QueryArgs struct {$/;"	t
+QueryReply	shardmaster/common.go	/^type QueryReply struct {$/;"	t
+Raft	raft/raft.go	/^type Raft struct {$/;"	t
+Raft	shardmaster/server.go	/^func (sm *ShardMaster) Raft() *raft.Raft {$/;"	f
+RaftElectionTimeout	raft/test_test.go	/^const RaftElectionTimeout = 1000 * time.Millisecond$/;"	c
+RaftStateSize	raft/persister.go	/^func (ps *Persister) RaftStateSize() int {$/;"	f
+ReadEndnameInfo	labrpc/labrpc.go	/^func (rn *Network) ReadEndnameInfo(endname interface{}) (enabled bool,$/;"	f
+ReadRaftState	raft/persister.go	/^func (ps *Persister) ReadRaftState() []byte {$/;"	f
+ReadSnapshot	raft/persister.go	/^func (ps *Persister) ReadSnapshot() []byte {$/;"	f
+ReduceFunc	mapreduce/test_test.go	/^func ReduceFunc(key string, values []string) string {$/;"	f
+Register	labgob/labgob.go	/^func Register(value interface{}) {$/;"	f
+Register	mapreduce/master.go	/^func (mr *Master) Register(args *RegisterArgs, _ *struct{}) error {$/;"	f
+RegisterArgs	mapreduce/common_rpc.go	/^type RegisterArgs struct {$/;"	t
+RegisterName	labgob/labgob.go	/^func RegisterName(name string, value interface{}) {$/;"	f
+Reliable	labrpc/labrpc.go	/^func (rn *Network) Reliable(yes bool) {$/;"	f
+RequestVote	raft/raft.go	/^func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {$/;"	f
+RequestVoteArgs	raft/raft.go	/^type RequestVoteArgs struct {$/;"	t
+RequestVoteReply	raft/raft.go	/^type RequestVoteReply struct {$/;"	t
+ReturnEvent	linearizability/model.go	/^	ReturnEvent EventKind = true$/;"	c
+RunWorker	mapreduce/worker.go	/^func RunWorker(MasterAddress string, me string,$/;"	f
+SaveRaftState	raft/persister.go	/^func (ps *Persister) SaveRaftState(state []byte) {$/;"	f
+SaveStateAndSnapshot	raft/persister.go	/^func (ps *Persister) SaveStateAndSnapshot(state []byte, snapshot []byte) {$/;"	f
+Sequential	mapreduce/master.go	/^func Sequential(jobName string, files []string, nreduce int,$/;"	f
+Server	labrpc/labrpc.go	/^type Server struct {$/;"	t
+Service	labrpc/labrpc.go	/^type Service struct {$/;"	t
+ShallowEqual	linearizability/model.go	/^func ShallowEqual(state1, state2 interface{}) bool {$/;"	f
+ShardKV	shardkv/server.go	/^type ShardKV struct {$/;"	t
+ShardMaster	shardmaster/server.go	/^type ShardMaster struct {$/;"	t
+Shutdown	mapreduce/master_rpc.go	/^func (mr *Master) Shutdown(_, _ *struct{}) error {$/;"	f
+Shutdown	mapreduce/worker.go	/^func (wk *Worker) Shutdown(_ *struct{}, res *ShutdownReply) error {$/;"	f
+ShutdownGroup	shardkv/config.go	/^func (cfg *config) ShutdownGroup(gi int) {$/;"	f
+ShutdownReply	mapreduce/common_rpc.go	/^type ShutdownReply struct {$/;"	t
+ShutdownServer	kvraft/config.go	/^func (cfg *config) ShutdownServer(i int) {$/;"	f
+ShutdownServer	shardkv/config.go	/^func (cfg *config) ShutdownServer(gi int, i int) {$/;"	f
+ShutdownServer	shardmaster/config.go	/^func (cfg *config) ShutdownServer(i int) {$/;"	f
+SnapshotSize	kvraft/config.go	/^func (cfg *config) SnapshotSize() int {$/;"	f
+SnapshotSize	raft/persister.go	/^func (ps *Persister) SnapshotSize() int {$/;"	f
+Start	raft/raft.go	/^func (rf *Raft) Start(command interface{}) (int, int, bool) {$/;"	f
+StartGroup	shardkv/config.go	/^func (cfg *config) StartGroup(gi int) {$/;"	f
+StartKVServer	kvraft/server.go	/^func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister, maxraftstate int) *KVServer {$/;"	f
+StartMasterServer	shardkv/config.go	/^func (cfg *config) StartMasterServer(i int) {$/;"	f
+StartServer	kvraft/config.go	/^func (cfg *config) StartServer(i int) {$/;"	f
+StartServer	shardkv/config.go	/^func (cfg *config) StartServer(gi int, i int) {$/;"	f
+StartServer	shardkv/server.go	/^func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister, maxraftstate int, gid int, masters []*labrpc.ClientEnd, make_end func(string) *labrpc.ClientEnd) *ShardKV {$/;"	f
+StartServer	shardmaster/config.go	/^func (cfg *config) StartServer(i int) {$/;"	f
+StartServer	shardmaster/server.go	/^func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister) *ShardMaster {$/;"	f
+Swap	linearizability/linearizability.go	/^func (a byTime) Swap(i, j int) {$/;"	f
+T1	labgob/test_test.go	/^type T1 struct {$/;"	t
+T2	labgob/test_test.go	/^type T2 struct {$/;"	t
+T3	labgob/test_test.go	/^type T3 struct {$/;"	t
+T4	labgob/test_test.go	/^type T4 struct {$/;"	t
+TestBackup2B	raft/test_test.go	/^func TestBackup2B(t *testing.T) {$/;"	f
+TestBasic	labrpc/test_test.go	/^func TestBasic(t *testing.T) {$/;"	f
+TestBasic	shardmaster/test_test.go	/^func TestBasic(t *testing.T) {$/;"	f
+TestBasic3A	kvraft/test_test.go	/^func TestBasic3A(t *testing.T) {$/;"	f
+TestBasicAgree2B	raft/test_test.go	/^func TestBasicAgree2B(t *testing.T) {$/;"	f
+TestBenchmark	labrpc/test_test.go	/^func TestBenchmark(t *testing.T) {$/;"	f
+TestCapital	labgob/test_test.go	/^func TestCapital(t *testing.T) {$/;"	f
+TestChallenge1Concurrent	shardkv/test_test.go	/^func TestChallenge1Concurrent(t *testing.T) {$/;"	f
+TestChallenge1Delete	shardkv/test_test.go	/^func TestChallenge1Delete(t *testing.T) {$/;"	f
+TestChallenge2Partial	shardkv/test_test.go	/^func TestChallenge2Partial(t *testing.T) {$/;"	f
+TestChallenge2Unaffected	shardkv/test_test.go	/^func TestChallenge2Unaffected(t *testing.T) {$/;"	f
+TestConcurrent1	shardkv/test_test.go	/^func TestConcurrent1(t *testing.T) {$/;"	f
+TestConcurrent2	shardkv/test_test.go	/^func TestConcurrent2(t *testing.T) {$/;"	f
+TestConcurrent3A	kvraft/test_test.go	/^func TestConcurrent3A(t *testing.T) {$/;"	f
+TestConcurrentMany	labrpc/test_test.go	/^func TestConcurrentMany(t *testing.T) {$/;"	f
+TestConcurrentOne	labrpc/test_test.go	/^func TestConcurrentOne(t *testing.T) {$/;"	f
+TestConcurrentStarts2B	raft/test_test.go	/^func TestConcurrentStarts2B(t *testing.T) {$/;"	f
+TestCount2B	raft/test_test.go	/^func TestCount2B(t *testing.T) {$/;"	f
+TestCounts	labrpc/test_test.go	/^func TestCounts(t *testing.T) {$/;"	f
+TestDefault	labgob/test_test.go	/^func TestDefault(t *testing.T) {$/;"	f
+TestDisconnect	labrpc/test_test.go	/^func TestDisconnect(t *testing.T) {$/;"	f
+TestFailAgree2B	raft/test_test.go	/^func TestFailAgree2B(t *testing.T) {$/;"	f
+TestFailNoAgree2B	raft/test_test.go	/^func TestFailNoAgree2B(t *testing.T) {$/;"	f
+TestFigure82C	raft/test_test.go	/^func TestFigure82C(t *testing.T) {$/;"	f
+TestFigure8Unreliable2C	raft/test_test.go	/^func TestFigure8Unreliable2C(t *testing.T) {$/;"	f
+TestGOB	labgob/test_test.go	/^func TestGOB(t *testing.T) {$/;"	f
+TestInitialElection2A	raft/test_test.go	/^func TestInitialElection2A(t *testing.T) {$/;"	f
+TestJoinLeave	shardkv/test_test.go	/^func TestJoinLeave(t *testing.T) {$/;"	f
+TestKilled	labrpc/test_test.go	/^func TestKilled(t *testing.T) {$/;"	f
+TestManyFailures	mapreduce/test_test.go	/^func TestManyFailures(t *testing.T) {$/;"	f
+TestManyPartitionsManyClients3A	kvraft/test_test.go	/^func TestManyPartitionsManyClients3A(t *testing.T) {$/;"	f
+TestManyPartitionsOneClient3A	kvraft/test_test.go	/^func TestManyPartitionsOneClient3A(t *testing.T) {$/;"	f
+TestMissChange	shardkv/test_test.go	/^func TestMissChange(t *testing.T) {$/;"	f
+TestMulti	shardmaster/test_test.go	/^func TestMulti(t *testing.T) {$/;"	f
+TestOneFailure	mapreduce/test_test.go	/^func TestOneFailure(t *testing.T) {$/;"	f
+TestOnePartition3A	kvraft/test_test.go	/^func TestOnePartition3A(t *testing.T) {$/;"	f
+TestParallelBasic	mapreduce/test_test.go	/^func TestParallelBasic(t *testing.T) {$/;"	f
+TestParallelCheck	mapreduce/test_test.go	/^func TestParallelCheck(t *testing.T) {$/;"	f
+TestPersist12C	raft/test_test.go	/^func TestPersist12C(t *testing.T) {$/;"	f
+TestPersist22C	raft/test_test.go	/^func TestPersist22C(t *testing.T) {$/;"	f
+TestPersist32C	raft/test_test.go	/^func TestPersist32C(t *testing.T) {$/;"	f
+TestPersistConcurrent3A	kvraft/test_test.go	/^func TestPersistConcurrent3A(t *testing.T) {$/;"	f
+TestPersistConcurrentUnreliable3A	kvraft/test_test.go	/^func TestPersistConcurrentUnreliable3A(t *testing.T) {$/;"	f
+TestPersistOneClient3A	kvraft/test_test.go	/^func TestPersistOneClient3A(t *testing.T) {$/;"	f
+TestPersistPartition3A	kvraft/test_test.go	/^func TestPersistPartition3A(t *testing.T) {$/;"	f
+TestPersistPartitionUnreliable3A	kvraft/test_test.go	/^func TestPersistPartitionUnreliable3A(t *testing.T) {$/;"	f
+TestPersistPartitionUnreliableLinearizable3A	kvraft/test_test.go	/^func TestPersistPartitionUnreliableLinearizable3A(t *testing.T) {$/;"	f
+TestReElection2A	raft/test_test.go	/^func TestReElection2A(t *testing.T) {$/;"	f
+TestRegression1	labrpc/test_test.go	/^func TestRegression1(t *testing.T) {$/;"	f
+TestRejoin2B	raft/test_test.go	/^func TestRejoin2B(t *testing.T) {$/;"	f
+TestReliableChurn2C	raft/test_test.go	/^func TestReliableChurn2C(t *testing.T) {$/;"	f
+TestSequentialMany	mapreduce/test_test.go	/^func TestSequentialMany(t *testing.T) {$/;"	f
+TestSequentialSingle	mapreduce/test_test.go	/^func TestSequentialSingle(t *testing.T) {$/;"	f
+TestSnapshot	shardkv/test_test.go	/^func TestSnapshot(t *testing.T) {$/;"	f
+TestSnapshotRPC3B	kvraft/test_test.go	/^func TestSnapshotRPC3B(t *testing.T) {$/;"	f
+TestSnapshotRecover3B	kvraft/test_test.go	/^func TestSnapshotRecover3B(t *testing.T) {$/;"	f
+TestSnapshotRecoverManyClients3B	kvraft/test_test.go	/^func TestSnapshotRecoverManyClients3B(t *testing.T) {$/;"	f
+TestSnapshotSize3B	kvraft/test_test.go	/^func TestSnapshotSize3B(t *testing.T) {$/;"	f
+TestSnapshotUnreliable3B	kvraft/test_test.go	/^func TestSnapshotUnreliable3B(t *testing.T) {$/;"	f
+TestSnapshotUnreliableRecover3B	kvraft/test_test.go	/^func TestSnapshotUnreliableRecover3B(t *testing.T) {$/;"	f
+TestSnapshotUnreliableRecoverConcurrentPartition3B	kvraft/test_test.go	/^func TestSnapshotUnreliableRecoverConcurrentPartition3B(t *testing.T) {$/;"	f
+TestSnapshotUnreliableRecoverConcurrentPartitionLinearizable3B	kvraft/test_test.go	/^func TestSnapshotUnreliableRecoverConcurrentPartitionLinearizable3B(t *testing.T) {$/;"	f
+TestStaticShards	shardkv/test_test.go	/^func TestStaticShards(t *testing.T) {$/;"	f
+TestTypes	labrpc/test_test.go	/^func TestTypes(t *testing.T) {$/;"	f
+TestUnreliable	labrpc/test_test.go	/^func TestUnreliable(t *testing.T) {$/;"	f
+TestUnreliable1	shardkv/test_test.go	/^func TestUnreliable1(t *testing.T) {$/;"	f
+TestUnreliable2	shardkv/test_test.go	/^func TestUnreliable2(t *testing.T) {$/;"	f
+TestUnreliable3	shardkv/test_test.go	/^func TestUnreliable3(t *testing.T) {$/;"	f
+TestUnreliable3A	kvraft/test_test.go	/^func TestUnreliable3A(t *testing.T) {$/;"	f
+TestUnreliableAgree2C	raft/test_test.go	/^func TestUnreliableAgree2C(t *testing.T) {$/;"	f
+TestUnreliableChurn2C	raft/test_test.go	/^func TestUnreliableChurn2C(t *testing.T) {$/;"	f
+TestUnreliableOneKey3A	kvraft/test_test.go	/^func TestUnreliableOneKey3A(t *testing.T) {$/;"	f
+Wait	mapreduce/master.go	/^func (mr *Master) Wait() {$/;"	f
+Worker	mapreduce/worker.go	/^type Worker struct {$/;"	t
+begin	kvraft/config.go	/^func (cfg *config) begin(description string) {$/;"	f
+begin	raft/config.go	/^func (cfg *config) begin(description string) {$/;"	f
+bitset	linearizability/bitset.go	/^type bitset []uint64$/;"	t
+bitsetIndex	linearizability/bitset.go	/^func bitsetIndex(pos uint) (uint, uint) {$/;"	f
+byTime	linearizability/linearizability.go	/^type byTime []entry$/;"	t
+cacheContains	linearizability/linearizability.go	/^func cacheContains(model Model, cache map[uint64][]cacheEntry, entry cacheEntry) bool {$/;"	f
+cacheEntry	linearizability/linearizability.go	/^type cacheEntry struct {$/;"	t
+call	mapreduce/common_rpc.go	/^func call(srv string, rpcname string,$/;"	f
+callEntry	linearizability/linearizability.go	/^	callEntry   entryKind = false$/;"	c
+callsEntry	linearizability/linearizability.go	/^type callsEntry struct {$/;"	t
+check	kvraft/test_test.go	/^func check(cfg *config, t *testing.T, ck *Clerk, key string, value string) {$/;"	f
+check	mapreduce/test_test.go	/^func check(t *testing.T, files []string) {$/;"	f
+check	shardkv/test_test.go	/^func check(t *testing.T, ck *Clerk, key string, value string) {$/;"	f
+check	shardmaster/test_test.go	/^func check(t *testing.T, groups []int, ck *Clerk) {$/;"	f
+checkClntAppends	kvraft/test_test.go	/^func checkClntAppends(t *testing.T, clnt int, v string, count int) {$/;"	f
+checkConcurrentAppends	kvraft/test_test.go	/^func checkConcurrentAppends(t *testing.T, v string, counts []int) {$/;"	f
+checkDefault	labgob/labgob.go	/^func checkDefault(value interface{}) {$/;"	f
+checkDefault1	labgob/labgob.go	/^func checkDefault1(value reflect.Value, depth int, name string) {$/;"	f
+checkNoLeader	raft/config.go	/^func (cfg *config) checkNoLeader() {$/;"	f
+checkOneLeader	raft/config.go	/^func (cfg *config) checkOneLeader() int {$/;"	f
+checkSingle	linearizability/linearizability.go	/^func checkSingle(model Model, subhistory *node, kill *int32) bool {$/;"	f
+checkTerms	raft/config.go	/^func (cfg *config) checkTerms() int {$/;"	f
+checkTimeout	kvraft/config.go	/^func (cfg *config) checkTimeout() {$/;"	f
+checkTimeout	raft/config.go	/^func (cfg *config) checkTimeout() {$/;"	f
+checkTimeout	shardkv/config.go	/^func (cfg *config) checkTimeout() {$/;"	f
+checkTimeout	shardmaster/config.go	/^func (cfg *config) checkTimeout() {$/;"	f
+checkType	labgob/labgob.go	/^func checkType(t reflect.Type) {$/;"	f
+checkValue	labgob/labgob.go	/^func checkValue(value interface{}) {$/;"	f
+checkWorker	mapreduce/test_test.go	/^func checkWorker(t *testing.T, l []int) {$/;"	f
+check_same_config	shardmaster/test_test.go	/^func check_same_config(t *testing.T, c1 Config, c2 Config) {$/;"	f
+checked	labgob/labgob.go	/^var checked map[reflect.Type]bool$/;"	v
+checklogs	shardkv/config.go	/^func (cfg *config) checklogs() {$/;"	f
+cleanup	kvraft/config.go	/^func (cfg *config) cleanup() {$/;"	f
+cleanup	mapreduce/test_test.go	/^func cleanup(mr *Master) {$/;"	f
+cleanup	raft/config.go	/^func (cfg *config) cleanup() {$/;"	f
+cleanup	shardkv/config.go	/^func (cfg *config) cleanup() {$/;"	f
+cleanup	shardmaster/config.go	/^func (cfg *config) cleanup() {$/;"	f
+clear	linearizability/bitset.go	/^func (b bitset) clear(pos uint) bitset {$/;"	f
+clone	linearizability/bitset.go	/^func (b bitset) clone() bitset {$/;"	f
+config	kvraft/config.go	/^type config struct {$/;"	t
+config	raft/config.go	/^type config struct {$/;"	t
+config	shardkv/config.go	/^type config struct {$/;"	t
+config	shardmaster/config.go	/^type config struct {$/;"	t
+connect	kvraft/config.go	/^func (cfg *config) connect(i int, to []int) {$/;"	f
+connect	raft/config.go	/^func (cfg *config) connect(i int) {$/;"	f
+connect	shardmaster/config.go	/^func (cfg *config) connect(i int, to []int) {$/;"	f
+connectUnlocked	kvraft/config.go	/^func (cfg *config) connectUnlocked(i int, to []int) {$/;"	f
+connectUnlocked	shardmaster/config.go	/^func (cfg *config) connectUnlocked(i int, to []int) {$/;"	f
+convertEntries	linearizability/linearizability.go	/^func convertEntries(events []Event) []entry {$/;"	f
+crash1	raft/config.go	/^func (cfg *config) crash1(i int) {$/;"	f
+debug	mapreduce/common.go	/^func debug(format string, a ...interface{}) (n int, err error) {$/;"	f
+debugEnabled	mapreduce/common.go	/^const debugEnabled = false$/;"	c
+deleteClient	kvraft/config.go	/^func (cfg *config) deleteClient(ck *Clerk) {$/;"	f
+deleteClient	shardkv/config.go	/^func (cfg *config) deleteClient(ck *Clerk) {$/;"	f
+deleteClient	shardmaster/config.go	/^func (cfg *config) deleteClient(ck *Clerk) {$/;"	f
+disconnect	kvraft/config.go	/^func (cfg *config) disconnect(i int, from []int) {$/;"	f
+disconnect	raft/config.go	/^func (cfg *config) disconnect(i int) {$/;"	f
+disconnect	shardmaster/config.go	/^func (cfg *config) disconnect(i int, from []int) {$/;"	f
+disconnectUnlocked	kvraft/config.go	/^func (cfg *config) disconnectUnlocked(i int, from []int) {$/;"	f
+disconnectUnlocked	shardmaster/config.go	/^func (cfg *config) disconnectUnlocked(i int, from []int) {$/;"	f
+dispatch	labrpc/labrpc.go	/^func (rs *Server) dispatch(req reqMsg) replyMsg {$/;"	f
+dispatch	labrpc/labrpc.go	/^func (svc *Service) dispatch(methname string, req reqMsg) replyMsg {$/;"	f
+doMap	mapreduce/common_map.go	/^func doMap($/;"	f
+doReduce	mapreduce/common_reduce.go	/^func doReduce($/;"	f
+electionTimeout	kvraft/test_test.go	/^const electionTimeout = 1 * time.Second$/;"	c
+end	kvraft/config.go	/^func (cfg *config) end() {$/;"	f
+end	raft/config.go	/^func (cfg *config) end() {$/;"	f
+entry	linearizability/linearizability.go	/^type entry struct {$/;"	t
+entryKind	linearizability/linearizability.go	/^type entryKind bool$/;"	t
+equals	linearizability/bitset.go	/^func (b bitset) equals(b2 bitset) bool {$/;"	f
+errorCount	labgob/labgob.go	/^var errorCount int \/\/ for TestCapital$/;"	v
+fillDefault	linearizability/linearizability.go	/^func fillDefault(model Model) Model {$/;"	f
+forwardRegistrations	mapreduce/master.go	/^func (mr *Master) forwardRegistrations(ch chan string) {$/;"	f
+get	linearizability/bitset.go	/^func (b bitset) get(pos uint) bool {$/;"	f
+group	shardkv/config.go	/^type group struct {$/;"	t
+hash	linearizability/bitset.go	/^func (b bitset) hash() uint64 {$/;"	f
+ihash	mapreduce/common_map.go	/^func ihash(s string) int {$/;"	f
+insertBefore	linearizability/linearizability.go	/^func insertBefore(n *node, mark *node) *node {$/;"	f
+internalChurn	raft/test_test.go	/^func internalChurn(t *testing.T, unreliable bool) {$/;"	f
+jobPhase	mapreduce/common.go	/^type jobPhase string$/;"	t
+join	shardkv/config.go	/^func (cfg *config) join(gi int) {$/;"	f
+joinm	shardkv/config.go	/^func (cfg *config) joinm(gis []int) {$/;"	f
+key2shard	shardkv/client.go	/^func key2shard(key string) int {$/;"	f
+killWorkers	mapreduce/master.go	/^func (mr *Master) killWorkers() []int {$/;"	f
+labgob	labgob/labgob.go	/^package labgob$/;"	p
+labgob	labgob/test_test.go	/^package labgob$/;"	p
+labrpc	labrpc/labrpc.go	/^package labrpc$/;"	p
+labrpc	labrpc/test_test.go	/^package labrpc$/;"	p
+leave	shardkv/config.go	/^func (cfg *config) leave(gi int) {$/;"	f
+leavem	shardkv/config.go	/^func (cfg *config) leavem(gis []int) {$/;"	f
+length	linearizability/linearizability.go	/^func length(n *node) uint {$/;"	f
+lift	linearizability/linearizability.go	/^func lift(entry *node) {$/;"	f
+linearizability	linearizability/bitset.go	/^package linearizability$/;"	p
+linearizability	linearizability/linearizability.go	/^package linearizability$/;"	p
+linearizability	linearizability/model.go	/^package linearizability$/;"	p
+linearizability	linearizability/models.go	/^package linearizability$/;"	p
+linearizabilityCheckTimeout	kvraft/test_test.go	/^const linearizabilityCheckTimeout = 1 * time.Second$/;"	c
+linearizabilityCheckTimeout	shardkv/test_test.go	/^const linearizabilityCheckTimeout = 1 * time.Second$/;"	c
+main	main/diskvd.go	/^func main() {$/;"	f
+main	main/diskvd.go	/^package main$/;"	p
+main	main/ii.go	/^func main() {$/;"	f
+main	main/ii.go	/^package main$/;"	p
+main	main/lockc.go	/^func main() {$/;"	f
+main	main/lockc.go	/^package main$/;"	p
+main	main/lockd.go	/^func main() {$/;"	f
+main	main/lockd.go	/^package main$/;"	p
+main	main/pbc.go	/^func main() {$/;"	f
+main	main/pbc.go	/^package main$/;"	p
+main	main/pbd.go	/^func main() {$/;"	f
+main	main/pbd.go	/^package main$/;"	p
+main	main/viewd.go	/^func main() {$/;"	f
+main	main/viewd.go	/^package main$/;"	p
+main	main/wc.go	/^func main() {$/;"	f
+main	main/wc.go	/^package main$/;"	p
+makeClient	kvraft/config.go	/^func (cfg *config) makeClient(to []int) *Clerk {$/;"	f
+makeClient	shardkv/config.go	/^func (cfg *config) makeClient() *Clerk {$/;"	f
+makeClient	shardmaster/config.go	/^func (cfg *config) makeClient(to []int) *Clerk {$/;"	f
+makeEntries	linearizability/linearizability.go	/^func makeEntries(history []Operation) []entry {$/;"	f
+makeInputs	mapreduce/test_test.go	/^func makeInputs(num int) []string {$/;"	f
+makeLinkedEntries	linearizability/linearizability.go	/^func makeLinkedEntries(entries []entry) *node {$/;"	f
+makeSeed	kvraft/config.go	/^func makeSeed() int64 {$/;"	f
+makeSeed	raft/config.go	/^func makeSeed() int64 {$/;"	f
+makeSeed	shardkv/config.go	/^func makeSeed() int64 {$/;"	f
+make_config	kvraft/config.go	/^func make_config(t *testing.T, n int, unreliable bool, maxraftstate int) *config {$/;"	f
+make_config	raft/config.go	/^func make_config(t *testing.T, n int, unreliable bool) *config {$/;"	f
+make_config	shardkv/config.go	/^func make_config(t *testing.T, n int, unreliable bool, maxraftstate int) *config {$/;"	f
+make_config	shardmaster/config.go	/^func make_config(t *testing.T, n int, unreliable bool) *config {$/;"	f
+make_partition	kvraft/config.go	/^func (cfg *config) make_partition() ([]int, []int) {$/;"	f
+make_partition	shardmaster/config.go	/^func (cfg *config) make_partition() ([]int, []int) {$/;"	f
+mapF	main/ii.go	/^func mapF(document string, value string) (res []mapreduce.KeyValue) {$/;"	f
+mapF	main/wc.go	/^func mapF(filename string, contents string) []mapreduce.KeyValue {$/;"	f
+mapPhase	mapreduce/common.go	/^	mapPhase    jobPhase = "mapPhase"$/;"	c
+mapreduce	mapreduce/common.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/common_map.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/common_reduce.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/common_rpc.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/master.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/master_rpc.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/master_splitmerge.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/schedule.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/test_test.go	/^package mapreduce$/;"	p
+mapreduce	mapreduce/worker.go	/^package mapreduce$/;"	p
+mastername	shardkv/config.go	/^func (cfg *config) mastername(i int) string {$/;"	f
+merge	mapreduce/master_splitmerge.go	/^func (mr *Master) merge() {$/;"	f
+mergeName	mapreduce/common.go	/^func mergeName(jobName string, reduceTask int) string {$/;"	f
+mu	labgob/labgob.go	/^var mu sync.Mutex$/;"	v
+nCommitted	raft/config.go	/^func (cfg *config) nCommitted(index int) (int, interface{}) {$/;"	f
+nMap	mapreduce/test_test.go	/^	nMap    = 20$/;"	c
+nNumber	mapreduce/test_test.go	/^	nNumber = 100000$/;"	c
+nReduce	mapreduce/test_test.go	/^	nReduce = 10$/;"	c
+ncpu_once	kvraft/config.go	/^var ncpu_once sync.Once$/;"	v
+ncpu_once	raft/config.go	/^var ncpu_once sync.Once$/;"	v
+ncpu_once	shardkv/config.go	/^var ncpu_once sync.Once$/;"	v
+newBitset	linearizability/bitset.go	/^func newBitset(bits uint) bitset {$/;"	f
+newMaster	mapreduce/master.go	/^func newMaster(master string) (mr *Master) {$/;"	f
+node	linearizability/linearizability.go	/^type node struct {$/;"	t
+nrand	kvraft/client.go	/^func nrand() int64 {$/;"	f
+nrand	shardkv/client.go	/^func nrand() int64 {$/;"	f
+nrand	shardmaster/client.go	/^func nrand() int64 {$/;"	f
+one	raft/config.go	/^func (cfg *config) one(cmd int, expectedServers int, retry bool) int {$/;"	f
+op	kvraft/config.go	/^func (cfg *config) op() {$/;"	f
+partition	kvraft/config.go	/^func (cfg *config) partition(p1 []int, p2 []int) {$/;"	f
+partition	shardmaster/config.go	/^func (cfg *config) partition(p1 []int, p2 []int) {$/;"	f
+partitioner	kvraft/test_test.go	/^func partitioner(t *testing.T, cfg *config, ch chan bool, done *int32) {$/;"	f
+persist	raft/raft.go	/^func (rf *Raft) persist() {$/;"	f
+popcnt	linearizability/bitset.go	/^func (b bitset) popcnt() uint {$/;"	f
+port	mapreduce/test_test.go	/^func port(suffix string) string {$/;"	f
+raft	raft/config.go	/^package raft$/;"	p
+raft	raft/persister.go	/^package raft$/;"	p
+raft	raft/raft.go	/^package raft$/;"	p
+raft	raft/test_test.go	/^package raft$/;"	p
+raft	raft/util.go	/^package raft$/;"	p
+raftkv	kvraft/client.go	/^package raftkv$/;"	p
+raftkv	kvraft/common.go	/^package raftkv$/;"	p
+raftkv	kvraft/config.go	/^package raftkv$/;"	p
+raftkv	kvraft/server.go	/^package raftkv$/;"	p
+raftkv	kvraft/test_test.go	/^package raftkv$/;"	p
+random_handles	kvraft/config.go	/^func random_handles(kvh []*labrpc.ClientEnd) []*labrpc.ClientEnd {$/;"	f
+random_handles	shardkv/config.go	/^func random_handles(kvh []*labrpc.ClientEnd) []*labrpc.ClientEnd {$/;"	f
+random_handles	shardmaster/config.go	/^func random_handles(kvh []*labrpc.ClientEnd) []*labrpc.ClientEnd {$/;"	f
+randstring	kvraft/config.go	/^func randstring(n int) string {$/;"	f
+randstring	raft/config.go	/^func randstring(n int) string {$/;"	f
+randstring	shardkv/config.go	/^func randstring(n int) string {$/;"	f
+randstring	shardmaster/config.go	/^func randstring(n int) string {$/;"	f
+readPersist	raft/raft.go	/^func (rf *Raft) readPersist(data []byte) {$/;"	f
+reduceF	main/ii.go	/^func reduceF(key string, values []string) string {$/;"	f
+reduceF	main/wc.go	/^func reduceF(key string, values []string) string {$/;"	f
+reduceName	mapreduce/common.go	/^func reduceName(jobName string, mapTask int, reduceTask int) string {$/;"	f
+reducePhase	mapreduce/common.go	/^	reducePhase          = "reducePhase"$/;"	c
+register	mapreduce/worker.go	/^func (wk *Worker) register(master string) {$/;"	f
+removeFile	mapreduce/master_splitmerge.go	/^func removeFile(n string) {$/;"	f
+renumber	linearizability/linearizability.go	/^func renumber(events []Event) []Event {$/;"	f
+replyMsg	labrpc/labrpc.go	/^type replyMsg struct {$/;"	t
+reqMsg	labrpc/labrpc.go	/^type reqMsg struct {$/;"	t
+returnEntry	linearizability/linearizability.go	/^	returnEntry           = true$/;"	c
+rpcCount	raft/config.go	/^func (cfg *config) rpcCount(server int) int {$/;"	f
+rpcTotal	kvraft/config.go	/^func (cfg *config) rpcTotal() int {$/;"	f
+rpcTotal	raft/config.go	/^func (cfg *config) rpcTotal() int {$/;"	f
+run	mapreduce/master.go	/^func (mr *Master) run(jobName string, files []string, nreduce int,$/;"	f
+run_client	kvraft/test_test.go	/^func run_client(t *testing.T, cfg *config, me int, ca chan bool, fn func(me int, ck *Clerk, t *testing.T)) {$/;"	f
+schedule	mapreduce/schedule.go	/^func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, registerChan chan string) {$/;"	f
+sendRequestVote	raft/raft.go	/^func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, reply *RequestVoteReply) bool {$/;"	f
+servername	shardkv/config.go	/^func (cfg *config) servername(gid int, i int) string {$/;"	f
+set	linearizability/bitset.go	/^func (b bitset) set(pos uint) bitset {$/;"	f
+setlongreordering	raft/config.go	/^func (cfg *config) setlongreordering(longrel bool) {$/;"	f
+setunreliable	raft/config.go	/^func (cfg *config) setunreliable(unrel bool) {$/;"	f
+setup	mapreduce/test_test.go	/^func setup() *Master {$/;"	f
+shardclerk	shardkv/config.go	/^func (cfg *config) shardclerk() *shardmaster.Clerk {$/;"	f
+shardkv	shardkv/client.go	/^package shardkv$/;"	p
+shardkv	shardkv/common.go	/^package shardkv$/;"	p
+shardkv	shardkv/config.go	/^package shardkv$/;"	p
+shardkv	shardkv/server.go	/^package shardkv$/;"	p
+shardkv	shardkv/test_test.go	/^package shardkv$/;"	p
+shardmaster	shardmaster/client.go	/^package shardmaster$/;"	p
+shardmaster	shardmaster/common.go	/^package shardmaster$/;"	p
+shardmaster	shardmaster/config.go	/^package shardmaster$/;"	p
+shardmaster	shardmaster/server.go	/^package shardmaster$/;"	p
+shardmaster	shardmaster/test_test.go	/^package shardmaster$/;"	p
+spawn_clients_and_wait	kvraft/test_test.go	/^func spawn_clients_and_wait(t *testing.T, cfg *config, ncli int, fn func(me int, ck *Clerk, t *testing.T)) {$/;"	f
+start1	raft/config.go	/^func (cfg *config) start1(i int) {$/;"	f
+startRPCServer	mapreduce/master_rpc.go	/^func (mr *Master) startRPCServer() {$/;"	f
+stopRPCServer	mapreduce/master_rpc.go	/^func (mr *Master) stopRPCServer() {$/;"	f
+unlift	linearizability/linearizability.go	/^func unlift(entry *node) {$/;"	f
+usage	main/diskvd.go	/^func usage() {$/;"	f
+usage	main/lockc.go	/^func usage() {$/;"	f
+usage	main/pbc.go	/^func usage() {$/;"	f
+wait	raft/config.go	/^func (cfg *config) wait(index int, n int, startTerm int) interface{} {$/;"	f

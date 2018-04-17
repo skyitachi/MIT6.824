@@ -1,5 +1,16 @@
 package mapreduce
 
+import(
+	"os"
+	"encoding/json"
+	"sort"
+
+)
+
+type ByKey []KeyValue
+func(a ByKey) Len() int {return len(a)}
+func(a ByKey) Swap(i, j int) {a[i], a[j] = a[j], a[i]}
+func(a ByKey) Less(i, j int) bool {return a[i].Key < a[j].Key}
 func doReduce(
 	jobName string, // the name of the whole MapReduce job
 	reduceTask int, // which reduce task this is
@@ -44,4 +55,38 @@ func doReduce(
 	//
 	// Your code here (Part I).
 	//
+	kvslice := make([]KeyValue, 0)
+	for i := 0; i < nMap; i++{
+		filename := reduceName(jobName, i, reduceTask)
+		f, _ := os.OpenFile(filename, os.O_RDONLY, 0666)
+		defer f.Close()
+		dec := json.NewDecoder(f)
+		var kv KeyValue
+		for{ 
+			err := dec.Decode(&kv)
+			if err != nil {
+				break
+			}else{
+				kvslice = append(kvslice, KeyValue(kv))
+			}
+		}
+	}
+	sort.Sort(ByKey(kvslice))
+	lenkv := len(kvslice)
+	value := make([]string, 0)
+	ff, _ := os.OpenFile(outFile, os.O_CREATE|os.O_RDONLY|os.O_WRONLY,0666)
+	defer ff.Close()
+	enc := json.NewEncoder(ff)
+	for i := 0; i < lenkv; i++{
+		if i != 0 && kvslice[i].Key != kvslice[i-1].Key{
+			s := reduceF(kvslice[i-1].Key, value)
+			enc.Encode(&KeyValue{kvslice[i-1].Key, s})
+			value = make([]string, 0)
+		}
+		value = append(value, kvslice[i].Value)
+	}
+	if len(value) != 0{
+		s := reduceF(kvslice[lenkv-1].Key, value)
+		enc.Encode(KeyValue{kvslice[lenkv-1].Key, s})
+	}
 }
