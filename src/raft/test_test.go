@@ -143,14 +143,19 @@ func TestFailNoAgree2B(t *testing.T) {
 	defer cfg.cleanup()
 
 	cfg.begin("Test (2B): no agreement if too many followers disconnect")
-
+	//fmt.Println("log 1")
 	cfg.one(10, servers, false)
 
 	// 3 of 5 followers disconnect
 	leader := cfg.checkOneLeader()
+
+	//fmt.Println("learder1", leader)
+
 	cfg.disconnect((leader + 1) % servers)
 	cfg.disconnect((leader + 2) % servers)
 	cfg.disconnect((leader + 3) % servers)
+
+	//fmt.Println("log 2")
 
 	index, _, ok := cfg.rafts[leader].Start(20)
 	if ok != true {
@@ -163,6 +168,9 @@ func TestFailNoAgree2B(t *testing.T) {
 	time.Sleep(2 * RaftElectionTimeout)
 
 	n, _ := cfg.nCommitted(index)
+
+	//fmt.Println("n", n, index)
+
 	if n > 0 {
 		t.Fatalf("%v committed but no majority", n)
 	}
@@ -175,6 +183,10 @@ func TestFailNoAgree2B(t *testing.T) {
 	// the disconnected majority may have chosen a leader from
 	// among their own ranks, forgetting index 2.
 	leader2 := cfg.checkOneLeader()
+
+	//fmt.Println("learder2", leader2)
+	//fmt.Println("log 3")
+
 	index2, _, ok2 := cfg.rafts[leader2].Start(30)
 	if ok2 == false {
 		t.Fatalf("leader2 rejected Start()")
@@ -182,7 +194,7 @@ func TestFailNoAgree2B(t *testing.T) {
 	if index2 < 2 || index2 > 3 {
 		t.Fatalf("unexpected index %v", index2)
 	}
-
+	//fmt.Println("log 4")
 	cfg.one(1000, servers, true)
 
 	cfg.end()
@@ -334,15 +346,18 @@ func TestBackup2B(t *testing.T) {
 
 	cfg.begin("Test (2B): leader backs up quickly over incorrect follower logs")
 
+	//fmt.Println("log 1")
 	cfg.one(rand.Int(), servers, true)
 
 	// put leader and one follower in a partition
 	leader1 := cfg.checkOneLeader()
+	//fmt.Println("Leader1", leader1)
 	cfg.disconnect((leader1 + 2) % servers)
 	cfg.disconnect((leader1 + 3) % servers)
 	cfg.disconnect((leader1 + 4) % servers)
 
 	// submit lots of commands that won't commit
+	//fmt.Println("log 2-51")
 	for i := 0; i < 50; i++ {
 		cfg.rafts[leader1].Start(rand.Int())
 	}
@@ -358,19 +373,22 @@ func TestBackup2B(t *testing.T) {
 	cfg.connect((leader1 + 4) % servers)
 
 	// lots of successful commands to new group.
+	//fmt.Println("log 52-101")
 	for i := 0; i < 50; i++ {
 		cfg.one(rand.Int(), 3, true)
 	}
 
 	// now another partitioned leader and one follower
 	leader2 := cfg.checkOneLeader()
+	//fmt.Println("leader2", leader2)
 	other := (leader1 + 2) % servers
 	if leader2 == other {
 		other = (leader2 + 1) % servers
 	}
 	cfg.disconnect(other)
-
+	//fmt.Println("other", other)
 	// lots more commands that won't commit
+	//fmt.Println("log102-151")
 	for i := 0; i < 50; i++ {
 		cfg.rafts[leader2].Start(rand.Int())
 	}
@@ -381,11 +399,18 @@ func TestBackup2B(t *testing.T) {
 	for i := 0; i < servers; i++ {
 		cfg.disconnect(i)
 	}
+	//fmt.Println("on",(leader1 + 0) % servers,(leader1 + 1) % servers,other)
 	cfg.connect((leader1 + 0) % servers)
 	cfg.connect((leader1 + 1) % servers)
 	cfg.connect(other)
 
 	// lots of successful commands to new group.
+	//fmt.Println("log152-201")
+	// for i :=0; i <5; i++{
+	// 	fmt.Println(cfg.rafts[i].commitIndex)
+	// 	term, isleader := cfg.rafts[i].GetState()
+	// 	fmt.Println(term, isleader)
+	// }
 	for i := 0; i < 50; i++ {
 		cfg.one(rand.Int(), 3, true)
 	}
@@ -394,6 +419,7 @@ func TestBackup2B(t *testing.T) {
 	for i := 0; i < servers; i++ {
 		cfg.connect(i)
 	}
+	//fmt.Println("log 202")
 	cfg.one(rand.Int(), servers, true)
 
 	cfg.end()
@@ -734,7 +760,6 @@ func TestFigure8Unreliable2C(t *testing.T) {
 	cfg.begin("Test (2C): Figure 8 (unreliable)")
 
 	cfg.one(rand.Int()%10000, 1, true)
-
 	nup := servers
 	for iters := 0; iters < 1000; iters++ {
 		if iters == 200 {
@@ -747,25 +772,39 @@ func TestFigure8Unreliable2C(t *testing.T) {
 				leader = i
 			}
 		}
+		fmt.Println("iters: ",iters,"leader is ", leader)
 
 		if (rand.Int() % 1000) < 100 {
 			ms := rand.Int63() % (int64(RaftElectionTimeout/time.Millisecond) / 2)
 			time.Sleep(time.Duration(ms) * time.Millisecond)
+			fmt.Println("long time")
 		} else {
 			ms := (rand.Int63() % 13)
 			time.Sleep(time.Duration(ms) * time.Millisecond)
+			fmt.Println("short time",ms )
 		}
 
 		if leader != -1 && (rand.Int()%1000) < int(RaftElectionTimeout/time.Millisecond)/2 {
 			cfg.disconnect(leader)
+			fmt.Println("disconnect  ", leader)
 			nup -= 1
 		}
-
+		fmt.Printf("still connected: ")
+		for j := 0; j < servers; j++{
+			if cfg.connected[j] == true{
+				fmt.Printf("%d ", j)
+			}
+		}
+		fmt.Println(" ")
 		if nup < 3 {
 			s := rand.Int() % servers
+			fmt.Printf("nup < 3:")
 			if cfg.connected[s] == false {
 				cfg.connect(s)
 				nup += 1
+				fmt.Println("connected", s)
+			}else{
+				fmt.Println("no connected")
 			}
 		}
 	}

@@ -181,6 +181,7 @@ func (cfg *config) start1(i int) {
 				}
 				_, prevok := cfg.logs[i][m.CommandIndex-1]
 				cfg.logs[i][m.CommandIndex] = v
+				//fmt.Println(i, m.CommandIndex, v)
 				if m.CommandIndex > cfg.maxIndex {
 					cfg.maxIndex = m.CommandIndex
 				}
@@ -312,6 +313,7 @@ func (cfg *config) checkOneLeader() int {
 		lastTermWithLeader := -1
 		for term, leaders := range leaders {
 			if len(leaders) > 1 {
+				fmt.Println("2 leaders: ", leaders)
 				cfg.t.Fatalf("term %d has %d (>1) leaders", term, len(leaders))
 			}
 			if term > lastTermWithLeader {
@@ -439,19 +441,22 @@ func (cfg *config) one(cmd int, expectedServers int, retry bool) int {
 			cfg.mu.Unlock()
 			if rf != nil {
 				index1, _, ok := rf.Start(cmd)
+				//fmt.Println(index1)
 				if ok {
 					index = index1
 					break
 				}
 			}
 		}
-
+		//fmt.Println(index)
 		if index != -1 {
 			// somebody claimed to be the leader and to have
 			// submitted our command; wait a while for agreement.
 			t1 := time.Now()
 			for time.Since(t1).Seconds() < 2 {
+				//fmt.Println("index", index)
 				nd, cmd1 := cfg.nCommitted(index)
+				//fmt.Println("nd",nd)
 				if nd > 0 && nd >= expectedServers {
 					// committed
 					if cmd2, ok := cmd1.(int); ok && cmd2 == cmd {
