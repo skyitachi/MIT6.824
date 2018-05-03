@@ -8,10 +8,14 @@ import "labrpc"
 import "time"
 import "crypto/rand"
 import "math/big"
+import "sync"
 
 type Clerk struct {
 	servers []*labrpc.ClientEnd
 	// Your data here.
+	mu      sync.Mutex
+	id            int64
+	seq	          int
 }
 
 func nrand() int64 {
@@ -25,13 +29,20 @@ func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {
 	ck := new(Clerk)
 	ck.servers = servers
 	// Your code here.
+	ck.id = nrand()
+	ck.seq = 1
 	return ck
 }
 
 func (ck *Clerk) Query(num int) Config {
+	ck.mu.Lock()
 	args := &QueryArgs{}
 	// Your code here.
 	args.Num = num
+	args.Id = ck.id
+	args.Seq = ck.seq
+	ck.seq++
+	ck.mu.Unlock()
 	for {
 		// try each known server.
 		for _, srv := range ck.servers {
@@ -46,10 +57,14 @@ func (ck *Clerk) Query(num int) Config {
 }
 
 func (ck *Clerk) Join(servers map[int][]string) {
+	ck.mu.Lock()
 	args := &JoinArgs{}
 	// Your code here.
 	args.Servers = servers
-
+	args.Id = ck.id
+	args.Seq = ck.seq
+	ck.seq++
+	ck.mu.Unlock()
 	for {
 		// try each known server.
 		for _, srv := range ck.servers {
@@ -64,10 +79,14 @@ func (ck *Clerk) Join(servers map[int][]string) {
 }
 
 func (ck *Clerk) Leave(gids []int) {
+	ck.mu.Lock()
 	args := &LeaveArgs{}
 	// Your code here.
 	args.GIDs = gids
-
+	args.Id = ck.id
+	args.Seq = ck.seq
+	ck.seq++
+	ck.mu.Unlock()
 	for {
 		// try each known server.
 		for _, srv := range ck.servers {
@@ -82,11 +101,15 @@ func (ck *Clerk) Leave(gids []int) {
 }
 
 func (ck *Clerk) Move(shard int, gid int) {
+	ck.mu.Lock()
 	args := &MoveArgs{}
 	// Your code here.
 	args.Shard = shard
 	args.GID = gid
-
+	args.Id = ck.id
+	args.Seq = ck.seq
+	ck.seq++	
+	ck.mu.Unlock()
 	for {
 		// try each known server.
 		for _, srv := range ck.servers {

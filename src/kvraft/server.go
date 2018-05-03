@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 	"fmt"
+	"bytes"
 )
 
 const Debug = 0
@@ -33,10 +34,6 @@ type Op struct {
 	Seq int
 }
 
-const(
-    IDLE=iota
-    BUSY
-)
 
 type KVServer struct {
 	mu      sync.Mutex
@@ -54,18 +51,28 @@ type KVServer struct {
 
 
 func (kv *KVServer) StartCommand(oop Op) Err {
+	kv.mu.Lock()
+
+	if seq, ok := kv.detectDup[oop.ClientId]; ok && seq >= oop.Seq{
+		kv.mu.Unlock()
+		return OK
+	}
+
+
 	index, _, isLeader := kv.rf.Start(oop)
-	fmt.Println("index",index)
+	//fmt.Println("index",index)
 	if !isLeader{
+		kv.mu.Unlock()
 		return ErrWrongLeader
 	}
-	kv.mu.Lock()
-	ch, ok := kv.chanresult[index]
-	if !ok{
-		ch = make(chan Op)
-		kv.chanresult[index] = ch
-	}
+	ch := make(chan Op)
+	kv.chanresult[index] = ch
 	kv.mu.Unlock()
+	defer func(){
+		kv.mu.Lock()
+		delete(kv.chanresult, index)
+		kv.mu.Unlock()
+	}()
 	//fmt.Println("unlock")
 	select{
 	case c := <-ch:
@@ -75,7 +82,7 @@ func (kv *KVServer) StartCommand(oop Op) Err {
 		}else{
 			return ErrWrongLeader
 		}
-	case <-time.After(time.Second * 10):
+	case <-time.After(time.Millisecond * 2000):
 		fmt.Println("timeout index", index)
 		return ErrTimeout
 	}
@@ -87,12 +94,13 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	op := Op{"Get", args.Key, "", args.ClientId, args.Seq}
 	err := kv.StartCommand(op)
 
-	if err == ErrWrongLeader || err == ErrTimeout{
+	reply.Err = err
+
+	if err !=OK {
 		reply.WrongLeader = true
 	}else{
 		reply.WrongLeader = false
 	}
-	reply.Err = err
 	kv.mu.Lock()
 	value, ok := kv.kvdatabase[args.Key]
 	if !ok{
@@ -108,12 +116,12 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	//fmt.Println(args.Op, args.ClientId, args.Seq,kv.me)
 	op := Op{args.Op, args.Key, args.Value, args.ClientId, args.Seq}
 	err := kv.StartCommand(op)
-	if err == ErrWrongLeader || err == ErrTimeout{
+	reply.Err = err
+	if err != OK{
 		reply.WrongLeader = true
 	}else{
 		reply.WrongLeader = false
 	}
-	reply.Err = err
 }
 
 //
@@ -127,51 +135,96 @@ func (kv *KVServer) Kill() {
 	// Your code here, if desired.
 }
 
-// func (kv *KVServer) DupCheck(cliid int64, seqid int) bool {
-// 	id, ok := kv.detectDup[cliid]
-// 	if ok{
-// 		return seqid > id
-// 	}
-// 	return true
-// }
+func (kv *KVServer) DupCheck(cliid int64, seqid int) bool {
+	id, ok := kv.detectDup[cliid]
+	if ok{
+		return seqid > id
+	}
+	return true
+}
 
 func (kv *KVServer) Apply(oop Op){
-	if kv.detectDup[oop.ClientId] < oop.Seq{
+	kv.mu.Lock()
+	if kv.DupCheck(oop.ClientId, oop.Seq){
 		switch oop.Opname{
 		case "Put":
 			kv.kvdatabase[oop.Key] = oop.Value
 		case "Append":
-			kv.kvdatabase[oop.Key] += oop.Value
+			if _, ok := kv.kvdatabase[oop.Key]; ok{
+				kv.kvdatabase[oop.Key] += oop.Value
+			}else{
+				kv.kvdatabase[oop.Key] = oop.Value
+			}
 		}
 		kv.detectDup[oop.ClientId] = oop.Seq
 	}
+	kv.mu.Unlock()
 }
 
 func (kv *KVServer) Reply(oop Op, index int){
-		ch, ok := kv.chanresult[index]
-		if ok{
-			select{
-				case <- ch:
-				default:
-			}
-			ch <- oop
-		}else{
-			ch = make(chan Op)
-			kv.chanresult[index] = ch
+	kv.mu.Lock()
+	ch, ok := kv.chanresult[index]
+	kv.mu.Unlock()
+	if ok{
+		select{
+			case <- ch:
+			default:
 		}
+		ch <- oop
+	}
 }
 
 func (kv *KVServer) doApplyOp(){
 	for{
 		msg := <-kv.applyCh
-		index := msg.CommandIndex
+		if msg.CommandValid{
+			index := msg.CommandIndex
+			if oop, ok := msg.Command.(Op); ok{
+				kv.Apply(oop)
+				kv.Reply(oop, index)
+				if kv.maxraftstate != -1 && 10*kv.rf.GetStateSize() >= kv.maxraftstate{
+					kv.SaveSnapshot(index)
+				} 
+			}
+		}else{
+			kv.LoadSnapshot(msg.Snapshot)
+		}
+	}
+}
+
+func (kv *KVServer) SaveSnapshot(index int){
+	kv.mu.Lock()
+	defer kv.mu.Unlock()
+
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	e.Encode(kv.kvdatabase)
+	e.Encode(kv.detectDup)
+	data := w.Bytes()
+	kv.rf.SaveSnapshot(index, data)
+}
+
+func (kv *KVServer) LoadSnapshot(snapshot []byte){
+	if snapshot == nil || len(snapshot) < 1{
 		kv.mu.Lock()
-		oop := msg.Command.(Op)
-		kv.Apply(oop)
-		kv.Reply(oop, index)
+		kv.kvdatabase = make(map[string]string)
+		kv.mu.Unlock()
+		return
+	}
+	s := bytes.NewBuffer(snapshot)
+	d := labgob.NewDecoder(s)
+	var kvdb map[string]string
+	var dup map[int64]int
+	if d.Decode(&kvdb) != nil || d.Decode(&dup) !=nil{
+		fmt.Println("server ",kv.me," readsnapshot wrong!")
+	}else{
+		kv.mu.Lock()
+		kv.kvdatabase = kvdb
+		kv.detectDup = dup
 		kv.mu.Unlock()
 	}
 }
+
 
 //
 // servers[] contains the ports of the set of
@@ -187,7 +240,6 @@ func (kv *KVServer) doApplyOp(){
 // StartKVServer() must return quickly, so it should start goroutines
 // for any long-running work.
 //
-
 func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister, maxraftstate int) *KVServer {
 	// call labgob.Register on structures you want
 	// Go's RPC library to marshall/unmarshall.
@@ -198,14 +250,15 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.maxraftstate = maxraftstate
 
 	// You may need initialization code here.
+	kv.kvdatabase = make(map[string]string)
+	kv.detectDup = make(map[int64]int)
+	kv.chanresult = make(map[int]chan Op)
 
+	kv.LoadSnapshot(persister.ReadSnapshot())
 	kv.applyCh = make(chan raft.ApplyMsg)
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
 
 	// You may need initialization code here.
-	kv.kvdatabase = make(map[string]string)
-	kv.detectDup = make(map[int64]int)
-	kv.chanresult = make(map[int]chan Op)
 
 	go kv.doApplyOp()
 

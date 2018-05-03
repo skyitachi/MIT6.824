@@ -604,9 +604,10 @@ func TestPersistPartitionUnreliableLinearizable3A(t *testing.T) {
 func TestSnapshotRPC3B(t *testing.T) {
 	const nservers = 3
 	maxraftstate := 1000
+	fmt.Println("start 1")
 	cfg := make_config(t, nservers, false, maxraftstate)
 	defer cfg.cleanup()
-
+	fmt.Println("start 2")
 	ck := cfg.makeClient(cfg.All())
 
 	cfg.begin("Test: InstallSnapshot RPC (3B)")
@@ -614,6 +615,7 @@ func TestSnapshotRPC3B(t *testing.T) {
 	Put(cfg, ck, "a", "A")
 	check(cfg, t, ck, "a", "A")
 
+	fmt.Println("partition 111")
 	// a bunch of puts into the majority partition.
 	cfg.partition([]int{0, 1}, []int{2})
 	{

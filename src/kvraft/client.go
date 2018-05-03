@@ -56,7 +56,9 @@ func (ck *Clerk) Get(key string) string {
 		reply := GetReply{}
 		ok := ck.servers[i].Call("KVServer.Get", &args, &reply)
 		if ok && reply.WrongLeader == false{
+			ck.mu.Lock()
 			ck.currentLeader = i
+			ck.mu.Unlock()
 			if reply.Err == OK{
 				return reply.Value
 			}else{
@@ -90,7 +92,9 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 		reply := PutAppendReply{}
 		ok := ck.servers[i].Call("KVServer.PutAppend", &args, &reply)
 		if ok && reply.WrongLeader == false{
+			ck.mu.Lock()
 			ck.currentLeader = i
+			ck.mu.Unlock()
 			return
 		}
 		i = (i + 1) % len(ck.servers)
