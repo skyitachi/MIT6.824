@@ -7,3 +7,5 @@ mrtmp.*
 /kvpaxos/x.txt
 /raft/*.log
 /kvraft/*.log
+/shardmaster/*.log
+/shardkv/*.log
