@@ -67,7 +67,7 @@ func (sm *ShardMaster) StartCommand(op Op) Err{
 
 	select{
 	case <-ch:
-		fmt.Println("ojbk")
+		//fmt.Println("success ", op.Id, op.Seq)
 		return OK
 	case <- time.After(time.Millisecond * 2000):
 		fmt.Println("timeout")
@@ -86,6 +86,9 @@ func (sm *ShardMaster) Join(args *JoinArgs, reply *JoinReply) {
 	}else{
 		reply.WrongLeader = false
 	}
+	if err == OK {
+		fmt.Println(sm.configs[len(sm.configs) - 1])
+	}
 }
 
 func (sm *ShardMaster) Leave(args *LeaveArgs, reply *LeaveReply) {
@@ -98,6 +101,9 @@ func (sm *ShardMaster) Leave(args *LeaveArgs, reply *LeaveReply) {
 		reply.WrongLeader = true
 	}else{
 		reply.WrongLeader = false
+	}
+	if err == OK {
+		fmt.Println(sm.configs[len(sm.configs) - 1])
 	}
 }
 
@@ -157,7 +163,7 @@ func LoadBalance(config *Config){
 		}
 	}
 	for i := range config.Groups{
-		fmt.Println(i,count[i])
+		//fmt.Println(i,count[i])
 		for count[i] < every{
 			for j := range config.Shards{
 				if count[config.Shards[j]] > every{
@@ -169,9 +175,9 @@ func LoadBalance(config *Config){
 			}
 		}
 	}
-	for i := range config.Shards{
-		fmt.Println(i,config.Shards[i], count[config.Shards[i]])
-	}
+	//for i := range config.Shards{
+	//	fmt.Println(i,config.Shards[i], count[config.Shards[i]])
+	//}
 	for i := range config.Groups{
 		if count[i] >= every + 1{
 			mod--
@@ -197,7 +203,7 @@ func (sm *ShardMaster) Apply(op Op){
 	defer sm.mu.Unlock()
 	if sm.DupCheck(op.Id, op.Seq){
 		newConfig := Config{}
-		newConfig.Num = sm.configs[len(sm.configs)-1].Num + 1
+		newConfig.Num = sm.configs[len(sm.configs) - 1].Num + 1
 		for index, shard := range sm.configs[len(sm.configs)-1].Shards{
 			newConfig.Shards[index] = shard
 		}
@@ -205,14 +211,14 @@ func (sm *ShardMaster) Apply(op Op){
 		for key, value := range sm.configs[len(sm.configs)-1].Groups{
 			newConfig.Groups[key] = value
 		}
-		fmt.Println(op.Opname)
+		//fmt.Println(op.Opname)
 		switch op.Opname{
 		case "Join":
 			for k, v := range op.Servers{
 				newConfig.Groups[k] = v
 			}
 			LoadBalance(&newConfig)
-			fmt.Println("finish join")
+			//fmt.Println("finish join")
 		case "Leave":
 			for _, v := range op.GIDs{
 				delete(newConfig.Groups, v)

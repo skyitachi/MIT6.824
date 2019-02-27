@@ -8,7 +8,12 @@ package shardkv
 // talks to the group that holds the key's shard.
 //
 
-import "labrpc"
+import (
+	"fmt"
+	"labrpc"
+	//"mime/multipart"
+	"sync"
+)
 import "crypto/rand"
 import "math/big"
 import "shardmaster"
@@ -40,6 +45,9 @@ type Clerk struct {
 	config   shardmaster.Config
 	make_end func(string) *labrpc.ClientEnd
 	// You will have to modify this struct.
+	mu       sync.Mutex
+	id   	 int64
+	seq 	 int
 }
 
 //
@@ -56,6 +64,10 @@ func MakeClerk(masters []*labrpc.ClientEnd, make_end func(string) *labrpc.Client
 	ck.sm = shardmaster.MakeClerk(masters)
 	ck.make_end = make_end
 	// You'll have to add code here.
+
+	ck.id = nrand()
+	ck.seq = 1
+	ck.config = ck.sm.Query(-1)
 	return ck
 }
 
@@ -66,13 +78,20 @@ func MakeClerk(masters []*labrpc.ClientEnd, make_end func(string) *labrpc.Client
 // You will have to modify this function.
 //
 func (ck *Clerk) Get(key string) string {
+	ck.mu.Lock()
 	args := GetArgs{}
 	args.Key = key
-
+	args.Id = ck.id
+	args.Seq = ck.seq
+	ck.seq++
+	ck.mu.Unlock()
 	for {
 		shard := key2shard(key)
+		ck.mu.Lock()
 		gid := ck.config.Shards[shard]
-		if servers, ok := ck.config.Groups[gid]; ok {
+		servers, ok := ck.config.Groups[gid]
+		ck.mu.Unlock()
+		if ok {
 			// try each server for the shard.
 			for si := 0; si < len(servers); si++ {
 				srv := ck.make_end(servers[si])
@@ -84,13 +103,20 @@ func (ck *Clerk) Get(key string) string {
 				if ok && (reply.Err == ErrWrongGroup) {
 					break
 				}
+				//fmt.Println(ok, gid)
 			}
 		}
+		//fmt.Println("errwronggroup")
 		time.Sleep(100 * time.Millisecond)
 		// ask master for the latest configuration.
-		ck.config = ck.sm.Query(-1)
+		newconfig := ck.sm.Query(-1)
+		ck.mu.Lock()
+		ck.config = newconfig
+		ck.mu.Unlock()
 	}
 
+	return ""
+	fmt.Println("get")
 	return ""
 }
 
@@ -99,16 +125,23 @@ func (ck *Clerk) Get(key string) string {
 // You will have to modify this function.
 //
 func (ck *Clerk) PutAppend(key string, value string, op string) {
+	ck.mu.Lock()
 	args := PutAppendArgs{}
 	args.Key = key
 	args.Value = value
 	args.Op = op
-
+	args.Id = ck.id
+	args.Seq = ck.seq
+	ck.seq++
+	ck.mu.Unlock()
 
 	for {
 		shard := key2shard(key)
+		ck.mu.Lock()
 		gid := ck.config.Shards[shard]
-		if servers, ok := ck.config.Groups[gid]; ok {
+		servers, ok := ck.config.Groups[gid]
+		ck.mu.Unlock()
+		if ok {
 			for si := 0; si < len(servers); si++ {
 				srv := ck.make_end(servers[si])
 				var reply PutAppendReply
@@ -123,7 +156,10 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 		}
 		time.Sleep(100 * time.Millisecond)
 		// ask master for the latest configuration.
-		ck.config = ck.sm.Query(-1)
+		newconfig := ck.sm.Query(-1)
+		ck.mu.Lock()
+		ck.config = newconfig
+		ck.mu.Unlock()
 	}
 }
 

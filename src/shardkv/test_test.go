@@ -41,9 +41,12 @@ func TestStaticShards(t *testing.T) {
 		va[i] = randstring(20)
 		ck.Put(ka[i], va[i])
 	}
+	//fmt.Println("put finish")
 	for i := 0; i < n; i++ {
 		check(t, ck, ka[i], va[i])
 	}
+
+	//fmt.Println("first check finish")
 
 	// make sure that the data really is sharded by
 	// shutting down one shard and checking that some
@@ -57,6 +60,7 @@ func TestStaticShards(t *testing.T) {
 		go func(i int) {
 			defer func() { ch <- true }()
 			check(t, ck1, ka[i], va[i])
+			//fmt.Println(i, " is checking")
 		}(xi)
 	}
 
@@ -77,13 +81,17 @@ func TestStaticShards(t *testing.T) {
 		t.Fatalf("expected 5 completions with one shard dead; got %v\n", ndone)
 	}
 
+	//fmt.Println("shutdown 1 is success")
+
 	// bring the crashed shard/group back to life.
 	cfg.StartGroup(1)
 	for i := 0; i < n; i++ {
 		check(t, ck, ka[i], va[i])
+		//fmt.Println(i, "2222 checking")
 	}
 
 	fmt.Printf("  ... Passed\n")
+	//time.Sleep(10 * time.Second)
 }
 
 func TestJoinLeave(t *testing.T) {
@@ -96,6 +104,7 @@ func TestJoinLeave(t *testing.T) {
 
 	cfg.join(0)
 
+	fmt.Println("join 0 success")
 	n := 10
 	ka := make([]string, n)
 	va := make([]string, n)
@@ -107,17 +116,24 @@ func TestJoinLeave(t *testing.T) {
 	for i := 0; i < n; i++ {
 		check(t, ck, ka[i], va[i])
 	}
+	fmt.Println("check 1111 finish")
 
 	cfg.join(1)
+	fmt.Println("join 1 sucess")
+
+	time.Sleep(200 * time.Millisecond)
 
 	for i := 0; i < n; i++ {
 		check(t, ck, ka[i], va[i])
+		fmt.Println(i, "is checking")
 		x := randstring(5)
 		ck.Append(ka[i], x)
 		va[i] += x
 	}
+	fmt.Println("check 2222 finish")
 
 	cfg.leave(0)
+	fmt.Println("leave 0 sucess")
 
 	for i := 0; i < n; i++ {
 		check(t, ck, ka[i], va[i])

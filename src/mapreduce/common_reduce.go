@@ -87,6 +87,6 @@ func doReduce(
 	}
 	if len(value) != 0{
 		s := reduceF(kvslice[lenkv-1].Key, value)
-		enc.Encode(KeyValue{kvslice[lenkv-1].Key, s})
+		enc.Encode(&KeyValue{kvslice[lenkv-1].Key, s})
 	}
 }

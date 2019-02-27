@@ -1,9 +1,9 @@
 package raftkv
 
 const (
-	OK       = "OK"
-	ErrNoKey = "ErrNoKey"
-	ErrTimeout = "ErrTimeout"
+	OK             = "OK"
+	ErrNoKey       = "ErrNoKey"
+	ErrTimeout     = "ErrTimeout"
 	ErrWrongLeader = "ErrWrongLeader"
 )
 

@@ -4,6 +4,7 @@ import "labrpc"
 import "crypto/rand"
 import "math/big"
 import "sync"
+
 //import "fmt"
 
 type Clerk struct {
@@ -12,7 +13,7 @@ type Clerk struct {
 	mu            sync.Mutex
 	currentLeader int
 	id            int64
-	seq	          int
+	seq           int
 }
 
 func nrand() int64 {
@@ -52,16 +53,16 @@ func (ck *Clerk) Get(key string) string {
 	ck.seq++
 	ck.mu.Unlock()
 	i := ck.currentLeader
-	for{
+	for {
 		reply := GetReply{}
 		ok := ck.servers[i].Call("KVServer.Get", &args, &reply)
-		if ok && reply.WrongLeader == false{
+		if ok && reply.WrongLeader == false {
 			ck.mu.Lock()
 			ck.currentLeader = i
 			ck.mu.Unlock()
-			if reply.Err == OK{
+			if reply.Err == OK {
 				return reply.Value
-			}else{
+			} else {
 				return ""
 			}
 		}
@@ -88,10 +89,10 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 	ck.mu.Unlock()
 	//fmt.Println(ck.currentLeader)
 	i := ck.currentLeader
-	for{
+	for {
 		reply := PutAppendReply{}
 		ok := ck.servers[i].Call("KVServer.PutAppend", &args, &reply)
-		if ok && reply.WrongLeader == false{
+		if ok && reply.WrongLeader == false {
 			ck.mu.Lock()
 			ck.currentLeader = i
 			ck.mu.Unlock()

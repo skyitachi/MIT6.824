@@ -28,7 +28,7 @@ const (
 // reduce functions.
 type KeyValue struct {
 	Key   string
-	Value string
+	Value strin
 }
 
 // reduceName constructs the name of the intermediate file which map task

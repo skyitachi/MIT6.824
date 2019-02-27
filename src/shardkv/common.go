@@ -12,7 +12,9 @@ package shardkv
 const (
 	OK            = "OK"
 	ErrNoKey      = "ErrNoKey"
+	ErrWrongLeader = "ErrWrongLeader"
 	ErrWrongGroup = "ErrWrongGroup"
+	ErrTimeout    = "ErrTimeout"
 )
 
 type Err string
@@ -26,6 +28,8 @@ type PutAppendArgs struct {
 	// You'll have to add definitions here.
 	// Field names must start with capital letters,
 	// otherwise RPC will break.
+	Id 	  int64
+	Seq   int
 }
 
 type PutAppendReply struct {
@@ -36,10 +40,23 @@ type PutAppendReply struct {
 type GetArgs struct {
 	Key string
 	// You'll have to add definitions here.
+	Id  int64
+	Seq int
 }
 
 type GetReply struct {
 	WrongLeader bool
 	Err         Err
 	Value       string
+}
+
+type MigrateArgs struct {
+	MapKV       map[string]string
+	Id 			int64
+	Seq			int
+}
+
+type MigrateReply struct {
+	WrongLeader bool
+	Err			Err
 }
