@@ -15,7 +15,7 @@ echo ""
 echo "==> Part IV"
 go test -run Failure mapreduce/...
 echo ""
-echo "==> Part V (inverted index)"
-(cd "$here" && sh ./test-ii.sh > /dev/null)
+#echo "==> Part V (inverted index)"
+#(cd "$here" && sh ./test-ii.sh > /dev/null)
 
 rm "$here"/mrtmp.* "$here"/diff.out
