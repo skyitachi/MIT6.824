@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="b57f95d0-4809-4f19-9ce0-b2b363ea747b" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/src/raft/multi_p.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/multi_p.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/raft/multi_test.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/multi_test.sh" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -25,8 +24,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/raft/multi_test.sh">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="255">
-              <caret line="15" column="22" selection-start-line="15" selection-start-column="22" selection-end-line="15" selection-end-column="22" />
+            <state relative-caret-position="238">
+              <caret line="14" column="8" lean-forward="true" selection-start-line="14" selection-start-column="8" selection-end-line="14" selection-end-column="8" />
             </state>
           </provider>
         </entry>
@@ -77,8 +76,8 @@
         <option value="$PROJECT_DIR$/src/shardkv/server.go" />
         <option value="$PROJECT_DIR$/src/mapreduce/common.go" />
         <option value="$PROJECT_DIR$/src/main/test-mr.sh" />
-        <option value="$PROJECT_DIR$/src/raft/multi_p.sh" />
         <option value="$PROJECT_DIR$/src/raft/multi_test.sh" />
+        <option value="$PROJECT_DIR$/src/raft/multi_p.sh" />
       </list>
     </option>
   </component>
@@ -469,8 +468,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/raft/multi_test.sh">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="15" column="22" selection-start-line="15" selection-start-column="22" selection-end-line="15" selection-end-column="22" />
+        <state relative-caret-position="238">
+          <caret line="14" column="8" lean-forward="true" selection-start-line="14" selection-start-column="8" selection-end-line="14" selection-end-column="8" />
         </state>
       </provider>
     </entry>
