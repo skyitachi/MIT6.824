@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 if [[ ! -n "$1" ]]; then
     echo "no parameter"
     exit

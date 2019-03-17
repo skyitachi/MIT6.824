@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="b57f95d0-4809-4f19-9ce0-b2b363ea747b" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/src/raft/multi_p.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/multi_p.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/raft/multi_test.sh" beforeDir="false" afterPath="$PROJECT_DIR$/src/raft/multi_test.sh" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -24,8 +25,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/raft/multi_test.sh">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="68">
-              <caret line="4" column="2" lean-forward="true" selection-start-line="4" selection-start-column="2" selection-end-line="4" selection-end-column="2" />
+            <state relative-caret-position="255">
+              <caret line="15" column="22" selection-start-line="15" selection-start-column="22" selection-end-line="15" selection-end-column="22" />
             </state>
           </provider>
         </entry>
@@ -77,6 +78,7 @@
         <option value="$PROJECT_DIR$/src/mapreduce/common.go" />
         <option value="$PROJECT_DIR$/src/main/test-mr.sh" />
         <option value="$PROJECT_DIR$/src/raft/multi_p.sh" />
+        <option value="$PROJECT_DIR$/src/raft/multi_test.sh" />
       </list>
     </option>
   </component>
@@ -467,8 +469,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/raft/multi_test.sh">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="68">
-          <caret line="4" column="2" lean-forward="true" selection-start-line="4" selection-start-column="2" selection-end-line="4" selection-end-column="2" />
+        <state relative-caret-position="255">
+          <caret line="15" column="22" selection-start-line="15" selection-start-column="22" selection-end-line="15" selection-end-column="22" />
         </state>
       </provider>
     </entry>
