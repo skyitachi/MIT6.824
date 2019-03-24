@@ -10,7 +10,7 @@ rm -rf $1
 for i in {0..10000}
 do
 
- tmp=`go test -run Linearizable`
+ tmp=`go test -run 3A`
     if [[ "${tmp}" =~ "FAIL" ]];
     then
         echo "${tmp}" > $1
