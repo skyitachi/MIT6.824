@@ -62,13 +62,14 @@ func (ck *Clerk) Get(key string) string {
 			ck.mu.Unlock()
 			if reply.Err == OK {
 				return reply.Value
-			} else {
+			} else if reply.Err == ErrNoKey{
 				return ""
+			} else if reply.Err == ErrTimeout{
+				continue
 			}
 		}
 		i = (i + 1) % len(ck.servers)
 	}
-	return ""
 }
 
 //
@@ -96,7 +97,11 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 			ck.mu.Lock()
 			ck.currentLeader = i
 			ck.mu.Unlock()
-			return
+			if reply.Err == OK {
+				return
+			} else if reply.Err == ErrTimeout {
+				continue
+			}
 		}
 		i = (i + 1) % len(ck.servers)
 	}

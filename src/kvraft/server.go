@@ -33,6 +33,12 @@ type Op struct {
 	Seq      int
 }
 
+type Result struct {
+	Seq int
+	Opname string
+	Value  string
+}
+
 type KVServer struct {
 	mu      sync.Mutex
 	me      int
@@ -43,23 +49,34 @@ type KVServer struct {
 
 	// Your definitions here.
 	kvdatabase map[string]string
-	detectDup  map[int64]int
+	detectDup  map[int64]Result
 	chanresult map[int]chan Op
 }
 
-func (kv *KVServer) StartCommand(oop Op) Err {
+func (kv *KVServer) CheckSame(c1 Op, c2 Op) bool {
+	if c1.ClientId == c2.ClientId && c1.Seq == c2.Seq{
+		return true
+	}
+	return false
+}
+
+func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	kv.mu.Lock()
 
-	if seq, ok := kv.detectDup[oop.ClientId]; ok && seq >= oop.Seq {
+	if res, ok := kv.detectDup[oop.ClientId]; ok && res.Seq >= oop.Seq {
+		resvalue := ""
+		if res.Opname == "Get" {
+			resvalue = res.Value
+		}
 		kv.mu.Unlock()
-		return OK
+		return OK, resvalue
 	}
 
 	index, _, isLeader := kv.rf.Start(oop)
 	//fmt.Println("index",index)
 	if !isLeader {
 		kv.mu.Unlock()
-		return ErrWrongLeader
+		return ErrWrongLeader, ""
 	}
 	ch := make(chan Op)
 	kv.chanresult[index] = ch
@@ -72,15 +89,21 @@ func (kv *KVServer) StartCommand(oop Op) Err {
 	//fmt.Println("unlock")
 	select {
 	case c := <-ch:
-		if c == oop {
+		if kv.CheckSame(c, oop) {
 			fmt.Println("reply to client:", index)
-			return OK
+			val := ""
+			if oop.Opname == "Get" {
+				kv.mu.Lock()
+				val = kv.detectDup[oop.ClientId].Value
+				kv.mu.Unlock()
+			}
+			return OK, val
 		} else {
-			return ErrWrongLeader
+			return ErrWrongLeader, ""
 		}
 	case <-time.After(time.Millisecond * 2000):
 		fmt.Println("timeout index", index)
-		return ErrTimeout
+		return ErrTimeout, ""
 	}
 }
 
@@ -88,32 +111,26 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
 	//fmt.Println("Get", args.ClientId, args.Seq, kv.me)
 	op := Op{"Get", args.Key, "", args.ClientId, args.Seq}
-	err := kv.StartCommand(op)
+	err, val := kv.StartCommand(op)
 
 	reply.Err = err
 
-	if err != OK {
+	if err == ErrWrongLeader {
 		reply.WrongLeader = true
-	} else {
-		reply.WrongLeader = false
+		return
 	}
-	kv.mu.Lock()
-	value, ok := kv.kvdatabase[args.Key]
-	if !ok {
-		value = ""
-		reply.Err = ErrNoKey
-	}
-	reply.Value = value
-	kv.mu.Unlock()
+
+	reply.WrongLeader = false
+	reply.Value = val
 }
 
 func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	// Your code here.
 	//fmt.Println(args.Op, args.ClientId, args.Seq,kv.me)
 	op := Op{args.Op, args.Key, args.Value, args.ClientId, args.Seq}
-	err := kv.StartCommand(op)
+	err, _ := kv.StartCommand(op)
 	reply.Err = err
-	if err != OK {
+	if err == ErrWrongLeader {
 		reply.WrongLeader = true
 	} else {
 		reply.WrongLeader = false
@@ -132,9 +149,9 @@ func (kv *KVServer) Kill() {
 }
 
 func (kv *KVServer) DupCheck(cliid int64, seqid int) bool {
-	id, ok := kv.detectDup[cliid]
+	res, ok := kv.detectDup[cliid]
 	if ok {
-		return seqid > id
+		return seqid > res.Seq
 	}
 	return true
 }
@@ -152,7 +169,7 @@ func (kv *KVServer) Apply(oop Op) {
 				kv.kvdatabase[oop.Key] = oop.Value
 			}
 		}
-		kv.detectDup[oop.ClientId] = oop.Seq
+		kv.detectDup[oop.ClientId] = Result{oop.Seq, oop.Opname, kv.kvdatabase[oop.Key]}
 	}
 	kv.mu.Unlock()
 }
@@ -178,7 +195,7 @@ func (kv *KVServer) doApplyOp() {
 			if oop, ok := msg.Command.(Op); ok {
 				kv.Apply(oop)
 				kv.Reply(oop, index)
-				if kv.maxraftstate != -1 && 10*kv.rf.GetStateSize() >= kv.maxraftstate {
+				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate {
 					kv.SaveSnapshot(index)
 				}
 			}
@@ -210,7 +227,7 @@ func (kv *KVServer) LoadSnapshot(snapshot []byte) {
 	s := bytes.NewBuffer(snapshot)
 	d := labgob.NewDecoder(s)
 	var kvdb map[string]string
-	var dup map[int64]int
+	var dup map[int64]Result
 	if d.Decode(&kvdb) != nil || d.Decode(&dup) != nil {
 		fmt.Println("server ", kv.me, " readsnapshot wrong!")
 	} else {
@@ -246,7 +263,7 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 
 	// You may need initialization code here.
 	kv.kvdatabase = make(map[string]string)
-	kv.detectDup = make(map[int64]int)
+	kv.detectDup = make(map[int64]Result)
 	kv.chanresult = make(map[int]chan Op)
 
 	kv.LoadSnapshot(persister.ReadSnapshot())
