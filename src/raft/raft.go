@@ -673,7 +673,8 @@ func (rf *Raft) doApply() {
 				}
 				FirstIndex := rf.log[0].Index
 				if rf.lastApplied+1 >= FirstIndex {
-					msg := ApplyMsg{CommandValid: true, Command: rf.log[rf.lastApplied+1-FirstIndex].Command, CommandIndex: rf.lastApplied + 1}
+					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
+					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
 					rf.mu.Unlock()
 					//fmt.Println(rf.me, "want to apply", rf.lastApplied+1)
 					//can't lock when send in channel, dead lock
