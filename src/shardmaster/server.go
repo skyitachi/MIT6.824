@@ -1,12 +1,20 @@
 package shardmaster
 
-
-import "raft"
+import (
+	"raft"
+)
 import "labrpc"
 import "sync"
 import "labgob"
 import "time"
 import "fmt"
+
+type Result struct {
+	Opname string
+	Id     int64
+	Seq int
+	config Config
+}
 
 type ShardMaster struct {
 	mu      sync.Mutex
@@ -17,7 +25,7 @@ type ShardMaster struct {
 	// Your data here.
 
 	configs []Config // indexed by config num
-	DetectDup map[int64]int
+	DetectDup map[int64]Result
 	result map[int]chan Op
 }
 
@@ -30,30 +38,39 @@ type Op struct {
 	GIDs []int
 	Shard int
 	GID int
+	Num int
 
 	Id      int64
 	Seq     int
 }
 
 func (sm *ShardMaster) DupCheck(id int64, seq int) bool {
-	ssq, ok := sm.DetectDup[id]
+	res, ok := sm.DetectDup[id]
 	if ok{
-		return seq > ssq
+		return seq > res.Seq
 	}
 	return true
 }
 
-func (sm *ShardMaster) StartCommand(op Op) Err{
+func (sm *ShardMaster) CheckSame(c1 Op, c2 Op) bool {
+	if c1.Id == c2.Id && c1.Seq == c2.Seq{
+		return true
+	}
+	return false
+}
+
+func (sm *ShardMaster) StartCommand(op Op) (Err, Config){
 	sm.mu.Lock()
 	if !sm.DupCheck(op.Id, op.Seq){
+		res, _ := sm.DetectDup[op.Id]
 		sm.mu.Unlock()
-		return OK
+		return OK, res.config
 	}
 
 	index, _, isLeader := sm.rf.Start(op)
 	if !isLeader{
 		sm.mu.Unlock()
-		return ErrWrongLeader
+		return ErrWrongLeader, Config{}
 	}
 	//fmt.Println("index",index, sm.me, op)
 	ch := make(chan Op)
@@ -66,22 +83,29 @@ func (sm *ShardMaster) StartCommand(op Op) Err{
 	}()
 
 	select{
-	case <-ch:
+	case c := <-ch:
+		if sm.CheckSame(c, op) {
+			sm.mu.Lock()
+			res := sm.DetectDup[op.Id]
+			sm.mu.Unlock()
+			return OK, res.config
+		} else{
+			return ErrWrongLeader, Config{}
+		}
 		//fmt.Println("success ", op.Id, op.Seq)
-		return OK
 	case <- time.After(time.Millisecond * 2000):
 		fmt.Println("timeout")
-		return ErrTimeout
+		return ErrTimeout, Config{}
 	}
 }
 
 func (sm *ShardMaster) Join(args *JoinArgs, reply *JoinReply) {
 	// Your code here.
 	op := Op{Opname:"Join",Servers:args.Servers, Id:args.Id, Seq:args.Seq}
-	err := sm.StartCommand(op)
+	err, _ := sm.StartCommand(op)
 
 	reply.Err = err
-	if err != OK{
+	if err == ErrWrongLeader{
 		reply.WrongLeader = true
 	}else{
 		reply.WrongLeader = false
@@ -94,10 +118,10 @@ func (sm *ShardMaster) Join(args *JoinArgs, reply *JoinReply) {
 func (sm *ShardMaster) Leave(args *LeaveArgs, reply *LeaveReply) {
 	// Your code here.
 	op := Op{Opname:"Leave", GIDs:args.GIDs, Id:args.Id, Seq:args.Seq}
-	err := sm.StartCommand(op)
+	err, _ := sm.StartCommand(op)
 
 	reply.Err = err
-	if err != OK{
+	if err == ErrWrongLeader{
 		reply.WrongLeader = true
 	}else{
 		reply.WrongLeader = false
@@ -110,10 +134,10 @@ func (sm *ShardMaster) Leave(args *LeaveArgs, reply *LeaveReply) {
 func (sm *ShardMaster) Move(args *MoveArgs, reply *MoveReply) {
 	// Your code here.
 	op := Op{Opname:"Move", Shard:args.Shard, GID:args.GID, Id:args.Id, Seq:args.Seq}
-	err := sm.StartCommand(op)
+	err, _ := sm.StartCommand(op)
 
 	reply.Err = err
-	if err != OK{
+	if err == ErrWrongLeader{
 		reply.WrongLeader = true
 	}else{
 		reply.WrongLeader = false
@@ -125,19 +149,17 @@ func (sm *ShardMaster) Query(args *QueryArgs, reply *QueryReply) {
 	if args.Num == -1 || args.Num >= len(sm.configs){
 		args.Num = len(sm.configs) - 1
 	}
-	op := Op{Opname:"Query", Id:args.Id, Seq:args.Seq}
+	op := Op{Opname:"Query", Num: args.Num, Id:args.Id, Seq:args.Seq}
 	//fmt.Println(sm.me, "op is ",op)
-	err := sm.StartCommand(op)
+	err, conf := sm.StartCommand(op)
 
+	reply.Config = conf
 	reply.Err = err
-	if err != OK{
+	if err == ErrWrongLeader{
 		reply.WrongLeader = true
 	}else{
 		reply.WrongLeader = false
 	}
-	sm.mu.Lock()
-	reply.Config = sm.configs[args.Num]
-	sm.mu.Unlock()
 	//fmt.Println(reply.Config)
 }
 
@@ -232,8 +254,14 @@ func (sm *ShardMaster) Apply(op Op){
 		case "Move":
 			newConfig.Shards[op.Shard] = op.GID
 		}
-		sm.DetectDup[op.Id] = op.Seq
-		sm.configs = append(sm.configs, newConfig)
+		con := Config{}
+		if op.Opname == "Query" {
+			con = sm.configs[op.Num]
+		} else {
+			sm.configs = append(sm.configs, newConfig)
+		}
+		sm.DetectDup[op.Id] = Result{op.Opname, op.Id, op.Seq, con}
+
 	}
 }
 
@@ -297,7 +325,7 @@ func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister)
 	sm.rf = raft.Make(servers, me, persister, sm.applyCh)
 
 	// Your code here.
-	sm.DetectDup = make(map[int64]int)
+	sm.DetectDup = make(map[int64]Result)
 	sm.result = make(map[int]chan Op)
 
 	go sm.doApplyOp()
