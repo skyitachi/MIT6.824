@@ -351,8 +351,8 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	msg := ApplyMsg{CommandValid: false, Snapshot: args.Snapshot}
 	rf.lastApplied = args.LastIncludeIndex
 	rf.commitIndex = rf.lastApplied
-	rf.chanApplyMsg <- msg
 	rf.mu.Unlock()
+	rf.chanApplyMsg <- msg
 }
 
 //
@@ -676,9 +676,11 @@ func (rf *Raft) doApply() {
 				if rf.lastApplied+1 >= FirstIndex {
 					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
 					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
+					rf.mu.Unlock()
 					//fmt.Println(rf.me, "want to apply", rf.lastApplied+1)
 					//can't lock when send in channel, dead lock
 					rf.chanApplyMsg <- msg
+					rf.mu.Lock()
 				}
 				rf.lastApplied++
 				rf.mu.Unlock()
