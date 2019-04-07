@@ -669,6 +669,7 @@ func (rf *Raft) doApply() {
 			for  {
 				rf.mu.Lock()
 				if !(rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index) {
+					rf.mu.Unlock()
 					break
 				}
 				FirstIndex := rf.log[0].Index
