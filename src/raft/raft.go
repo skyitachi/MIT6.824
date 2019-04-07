@@ -666,10 +666,9 @@ func (rf *Raft) doApply() {
 		select {
 		case <-rf.chanCommit:
 			//fmt.Println("raft apply:", rf.me, rf.lastApplied)
-			for  {
+			for rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index {
 				rf.mu.Lock()
-				if !(rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index) {
-					rf.mu.Unlock()
+				if rf.lastApplied >= rf.commitIndex {
 					break
 				}
 				FirstIndex := rf.log[0].Index
