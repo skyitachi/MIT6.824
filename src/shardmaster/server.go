@@ -146,9 +146,9 @@ func (sm *ShardMaster) Move(args *MoveArgs, reply *MoveReply) {
 
 func (sm *ShardMaster) Query(args *QueryArgs, reply *QueryReply) {
 	// Your code here.
-	if args.Num == -1 || args.Num >= len(sm.configs){
-		args.Num = len(sm.configs) - 1
-	}
+	//if args.Num == -1 || args.Num >= len(sm.configs){
+	//	args.Num = len(sm.configs) - 1
+	//}
 	op := Op{Opname:"Query", Num: args.Num, Id:args.Id, Seq:args.Seq}
 	//fmt.Println(sm.me, "op is ",op)
 	err, conf := sm.StartCommand(op)
@@ -256,7 +256,11 @@ func (sm *ShardMaster) Apply(op Op){
 		}
 		con := Config{}
 		if op.Opname == "Query" {
-			con = sm.configs[op.Num]
+			num := op.Num
+			if op.Num == -1 || op.Num >= len(sm.configs) {
+				num = len(sm.configs) - 1
+			}
+			con = sm.configs[num]
 		} else {
 			sm.configs = append(sm.configs, newConfig)
 		}
@@ -283,9 +287,7 @@ func (sm *ShardMaster) doApplyOp(){
 		msg := <-sm.applyCh
 		index := msg.CommandIndex
 		if op, ok := msg.Command.(Op); ok{
-			if op.Opname != "Query"{
-				sm.Apply(op)
-			}
+			sm.Apply(op)
 			sm.Reply(op, index)
 		}
 	}
