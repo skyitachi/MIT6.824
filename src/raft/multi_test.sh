@@ -158,4 +158,4 @@ do
 done
 echo "${i} round" >> $1
 cat $1
-pkill -9 bash
+killall bash
