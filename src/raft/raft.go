@@ -243,6 +243,9 @@ func max(x int, y int) int {
 func (rf *Raft) ClearChange() {
 	rf.chanvoteGranted = make(chan int, 10000)
 	rf.chanAppendEntries = make(chan int, 10000)
+}
+
+func (rf *Raft) ClearNewLog(){
 	rf.chanNewLog = make(chan int, 10000)
 }
 
@@ -501,6 +504,8 @@ func (rf *Raft) updateCommit() {
 		}
 		if num > len(rf.peers)/2 {
 			N = i
+		} else {
+			break
 		}
 	}
 	if N > rf.commitIndex && rf.state == Leader {
@@ -700,11 +705,11 @@ func (rf *Raft) doStateChange() {
 			select {
 			case <- rf.chanNewLog:
 				rf.mu.Lock()
-				rf.ClearChange()
+				rf.ClearNewLog()
 				rf.mu.Unlock()
 			case <-time.After(time.Duration(50) * time.Millisecond):
 				rf.mu.Lock()
-				rf.ClearChange()
+				rf.ClearNewLog()
 				rf.mu.Unlock()
 			}
 		}
