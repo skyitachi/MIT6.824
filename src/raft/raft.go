@@ -245,9 +245,6 @@ func (rf *Raft) ClearChange() {
 	rf.chanAppendEntries = make(chan int, 10000)
 }
 
-func (rf *Raft) ClearNewLog(){
-	rf.chanNewLog = make(chan int, 10000)
-}
 
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Your code here (2A, 2B).
@@ -424,7 +421,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		index = rf.log[rf.GetLen()].Index + 1
 		//fmt.Println("a log entry size is: ", unsafe.Sizeof(entries{command, term, index}))
 		rf.log = append(rf.log, entries{command, term, index})
-		if(len(rf.chanNewLog) == 0){
+		if len(rf.chanNewLog) == 0 {
 			rf.chanNewLog <- 1
 		}
 		//newlog = true
@@ -504,9 +501,10 @@ func (rf *Raft) updateCommit() {
 		}
 		if num > len(rf.peers)/2 {
 			N = i
-		} else {
-			break
 		}
+		//else {
+		//	break
+		//}
 	}
 	if N > rf.commitIndex && rf.state == Leader {
 		rf.commitIndex = min(N, rf.log[rf.GetLen()].Index)
@@ -704,13 +702,7 @@ func (rf *Raft) doStateChange() {
 			time.Sleep(time.Duration(10) * time.Millisecond)
 			select {
 			case <- rf.chanNewLog:
-				rf.mu.Lock()
-				rf.ClearNewLog()
-				rf.mu.Unlock()
 			case <-time.After(time.Duration(50) * time.Millisecond):
-				rf.mu.Lock()
-				rf.ClearNewLog()
-				rf.mu.Unlock()
 			}
 		}
 	}
@@ -767,7 +759,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.chanLeader = make(chan int, 10000)
 	rf.chanApplyMsg = applyCh
 	rf.chanCommit = make(chan int, 10000)
-	rf.chanNewLog = make(chan int, 10000)
+	rf.chanNewLog = make(chan int, 1)
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
