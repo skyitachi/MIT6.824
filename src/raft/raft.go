@@ -17,7 +17,9 @@ package raft
 //   in the same server.
 //
 
-import "sync"
+import (
+	"sync"
+)
 import "labrpc"
 import "math/rand"
 import "time"
@@ -87,6 +89,7 @@ type Raft struct {
 	chanLeader        chan int
 	chanApplyMsg      chan ApplyMsg
 	chanCommit        chan int
+	chanNewLog		  chan int
 }
 
 // return currentTerm and whether this server
@@ -240,7 +243,9 @@ func max(x int, y int) int {
 func (rf *Raft) ClearChange() {
 	rf.chanvoteGranted = make(chan int, 10000)
 	rf.chanAppendEntries = make(chan int, 10000)
+	rf.chanNewLog = make(chan int, 10000)
 }
+
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Your code here (2A, 2B).
 	rf.mu.Lock()
@@ -407,16 +412,25 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	index := -1
 	term := -1
 	isLeader := true
-
+	//newlog := false
 	// Your code here (2B).
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	term, isLeader = rf.GetState()
 	if isLeader {
 		index = rf.log[rf.GetLen()].Index + 1
+		//fmt.Println("a log entry size is: ", unsafe.Sizeof(entries{command, term, index}))
 		rf.log = append(rf.log, entries{command, term, index})
+		if(len(rf.chanNewLog) == 0){
+			rf.chanNewLog <- 1
+		}
+		//newlog = true
 		rf.persist()
 	}
+	//if newlog {
+	//	// a new log append, so need to send heartbeat
+	//	go rf.allAppendEntries()
+	//}
 
 	return index, term, isLeader
 }
@@ -471,10 +485,7 @@ func (rf *Raft) allRequestVote() {
 	}
 }
 
-func (rf *Raft) allAppendEntries() {
-	//rules for leaders to increase the commitIndex
-	rf.mu.Lock()
-	defer rf.mu.Unlock()
+func (rf *Raft) updateCommit() {
 	N := rf.commitIndex
 	FirstIndex := rf.log[0].Index
 	for i := max(rf.commitIndex+1, FirstIndex+1); i <= rf.log[rf.GetLen()].Index; i++ {
@@ -496,6 +507,34 @@ func (rf *Raft) allAppendEntries() {
 		rf.commitIndex = min(N, rf.log[rf.GetLen()].Index)
 		rf.chanCommit <- 1
 	}
+}
+
+func (rf *Raft) allAppendEntries() {
+	//rules for leaders to increase the commitIndex
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	FirstIndex := rf.log[0].Index
+	rf.updateCommit()
+	//N := rf.commitIndex
+	//for i := max(rf.commitIndex+1, FirstIndex+1); i <= rf.log[rf.GetLen()].Index; i++ {
+	//	num := 1
+	//	for j := range rf.peers {
+	//		if j != rf.me {
+	//			if rf.matchIndex[j] >= i {
+	//				if rf.log[i-FirstIndex].Term == rf.currentTerm {
+	//					num++
+	//				}
+	//			}
+	//		}
+	//	}
+	//	if num > len(rf.peers)/2 {
+	//		N = i
+	//	}
+	//}
+	//if N > rf.commitIndex && rf.state == Leader {
+	//	rf.commitIndex = min(N, rf.log[rf.GetLen()].Index)
+	//	rf.chanCommit <- 1
+	//}
 	for i := 0; i < len(rf.peers); i++ {
 		if i != rf.me && rf.state == Leader {
 			if rf.nextIndex[i] > FirstIndex {
@@ -529,6 +568,7 @@ func (rf *Raft) allAppendEntries() {
 							if len(args.Entries) > 0 {
 								rf.nextIndex[i] = args.Entries[len(args.Entries)-1].Index + 1
 								rf.matchIndex[i] = rf.nextIndex[i] - 1
+								rf.updateCommit()
 							}
 						} else if rf.state == Leader {
 							if rf.nextIndex[i] > reply.PrevIndex+1 {
@@ -656,7 +696,17 @@ func (rf *Raft) doStateChange() {
 			}
 		case Leader:
 			go rf.allAppendEntries()
-			time.Sleep(time.Duration(50) * time.Millisecond)
+			time.Sleep(time.Duration(10) * time.Millisecond)
+			select {
+			case <- rf.chanNewLog:
+				rf.mu.Lock()
+				rf.ClearChange()
+				rf.mu.Unlock()
+			case <-time.After(time.Duration(50) * time.Millisecond):
+				rf.mu.Lock()
+				rf.ClearChange()
+				rf.mu.Unlock()
+			}
 		}
 	}
 }
@@ -666,9 +716,11 @@ func (rf *Raft) doApply() {
 		select {
 		case <-rf.chanCommit:
 			//fmt.Println("raft apply:", rf.me, rf.lastApplied)
-			for rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index {
+			//for rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index{
+			for {
 				rf.mu.Lock()
-				if rf.lastApplied >= rf.commitIndex {
+				if !(rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index) {
+					rf.mu.Unlock()
 					break
 				}
 				FirstIndex := rf.log[0].Index
@@ -710,6 +762,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.chanLeader = make(chan int, 10000)
 	rf.chanApplyMsg = applyCh
 	rf.chanCommit = make(chan int, 10000)
+	rf.chanNewLog = make(chan int, 10000)
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())

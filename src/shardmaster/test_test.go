@@ -124,14 +124,12 @@ func TestBasic(t *testing.T) {
 
 	for s := 0; s < nservers; s++ {
 		cfg.ShutdownServer(s)
-		fmt.Println("shutdown",s)
 		for i := 0; i < len(cfa); i++ {
 			c := ck.Query(cfa[i].Num)
 			check_same_config(t, c, cfa[i])
 		}
 		cfg.StartServer(s)
 		cfg.ConnectAll()
-		fmt.Println("recover",s)
 	}
 
 	fmt.Printf("  ... Passed\n")

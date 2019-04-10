@@ -35,14 +35,12 @@ func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {
 }
 
 func (ck *Clerk) Query(num int) Config {
-	ck.mu.Lock()
 	args := &QueryArgs{}
 	// Your code here.
 	args.Num = num
 	args.Id = ck.id
 	args.Seq = ck.seq
 	ck.seq++
-	ck.mu.Unlock()
 	for {
 		// try each known server.
 		for _, srv := range ck.servers {
@@ -57,14 +55,12 @@ func (ck *Clerk) Query(num int) Config {
 }
 
 func (ck *Clerk) Join(servers map[int][]string) {
-	ck.mu.Lock()
 	args := &JoinArgs{}
 	// Your code here.
 	args.Servers = servers
 	args.Id = ck.id
 	args.Seq = ck.seq
 	ck.seq++
-	ck.mu.Unlock()
 	for {
 		// try each known server.
 		for _, srv := range ck.servers {
@@ -79,14 +75,12 @@ func (ck *Clerk) Join(servers map[int][]string) {
 }
 
 func (ck *Clerk) Leave(gids []int) {
-	ck.mu.Lock()
 	args := &LeaveArgs{}
 	// Your code here.
 	args.GIDs = gids
 	args.Id = ck.id
 	args.Seq = ck.seq
 	ck.seq++
-	ck.mu.Unlock()
 	for {
 		// try each known server.
 		for _, srv := range ck.servers {
@@ -101,15 +95,13 @@ func (ck *Clerk) Leave(gids []int) {
 }
 
 func (ck *Clerk) Move(shard int, gid int) {
-	ck.mu.Lock()
 	args := &MoveArgs{}
 	// Your code here.
 	args.Shard = shard
 	args.GID = gid
 	args.Id = ck.id
 	args.Seq = ck.seq
-	ck.seq++	
-	ck.mu.Unlock()
+	ck.seq++
 	for {
 		// try each known server.
 		for _, srv := range ck.servers {
