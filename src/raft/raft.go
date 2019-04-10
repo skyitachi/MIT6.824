@@ -74,6 +74,7 @@ type Raft struct {
 	currentTerm int
 	votedFor    int
 	log         []entries
+	timestamp   int64
 	//volatile state
 	state       int
 	commitIndex int
@@ -131,6 +132,7 @@ func (rf *Raft) persist() {
 	e.Encode(rf.currentTerm)
 	e.Encode(rf.votedFor)
 	e.Encode(rf.log) //only three presistent state on all server
+	e.Encode(rf.timestamp)
 	data := w.Bytes()
 	rf.persister.SaveRaftState(data)
 }
@@ -160,7 +162,8 @@ func (rf *Raft) readPersist(data []byte) {
 	var curt int
 	var vote int
 	var llog []entries
-	if d.Decode(&curt) != nil || d.Decode(&vote) != nil || d.Decode(&llog) != nil {
+	var tm   int64
+	if d.Decode(&curt) != nil || d.Decode(&vote) != nil || d.Decode(&llog) != nil || d.Decode(&tm) != nil {
 		fmt.Println("server ", rf.me, " readPersist wrong!")
 	} else {
 		rf.mu.Lock()
@@ -168,6 +171,7 @@ func (rf *Raft) readPersist(data []byte) {
 		rf.ClearChange()
 		rf.votedFor = vote
 		rf.log = llog
+		rf.timestamp = tm
 		rf.mu.Unlock()
 	}
 }
@@ -202,12 +206,14 @@ type AppendEntriesArgs struct {
 	Entries      []entries
 
 	LeaderCommit int
+	TimeStamp	 int64
 }
 
 type AppendEntriesReply struct {
 	Term      int
 	PrevIndex int
 	Success   bool
+	ErrTimeout bool
 }
 
 type InstallSnapshotArgs struct {
@@ -216,10 +222,12 @@ type InstallSnapshotArgs struct {
 	LastIncludeIndex int
 	LastIncludeTerm  int
 	Snapshot         []byte
+	TimeStamp		 int64
 }
 
 type InstallSnapshotReply struct {
 	Term int
+	ErrTimeout	bool
 }
 
 //
@@ -287,8 +295,15 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	reply.Term = rf.currentTerm
 	reply.Success = false
 	reply.PrevIndex = args.PrevLogIndex
+	reply.ErrTimeout = false
 	if args.Term >= rf.currentTerm {
 		rf.chanAppendEntries <- 1
+		if args.TimeStamp <= rf.timestamp {
+			//this rpc is timeout, not in order
+			reply.ErrTimeout = true
+			return
+		}
+		rf.timestamp = args.TimeStamp
 		FirstIndex := rf.log[0].Index
 		NowIndex := args.PrevLogIndex - FirstIndex
 		if NowIndex < 0 {
@@ -338,7 +353,18 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		rf.state = Follower
 	}
 	reply.Term = rf.currentTerm
+	reply.ErrTimeout = false
+
 	rf.chanAppendEntries <- 1
+
+	if args.TimeStamp <= rf.timestamp {
+		//this rpc is timeout, not in order
+		reply.ErrTimeout = true
+		rf.mu.Unlock()
+		return
+	}
+	rf.timestamp = args.TimeStamp
+
 	FirstIndex := rf.log[0].Index
 	NowIndex := args.LastIncludeIndex - FirstIndex
 	if NowIndex < 0 {
@@ -518,6 +544,7 @@ func (rf *Raft) allAppendEntries() {
 	defer rf.mu.Unlock()
 	FirstIndex := rf.log[0].Index
 	rf.updateCommit()
+	rf.timestamp = time.Now().UnixNano()
 	//N := rf.commitIndex
 	//for i := max(rf.commitIndex+1, FirstIndex+1); i <= rf.log[rf.GetLen()].Index; i++ {
 	//	num := 1
@@ -547,7 +574,7 @@ func (rf *Raft) allAppendEntries() {
 				if tmpIndex < rf.log[rf.GetLen()].Index {
 					etr = rf.log[tmpIndex+1-FirstIndex:]
 				}
-				args := &AppendEntriesArgs{rf.currentTerm, rf.me, tmpIndex, rf.log[tmpIndex-FirstIndex].Term, etr, rf.commitIndex}
+				args := &AppendEntriesArgs{rf.currentTerm, rf.me, tmpIndex, rf.log[tmpIndex-FirstIndex].Term, etr, rf.commitIndex, rf.timestamp}
 				go func(args *AppendEntriesArgs, i int) {
 					reply := &AppendEntriesReply{}
 					//fmt.Println(rf.me)
@@ -555,6 +582,7 @@ func (rf *Raft) allAppendEntries() {
 					ok := rf.peers[i].Call("Raft.AppendEntries", args, reply)
 					rf.mu.Lock()
 					defer rf.mu.Unlock()
+					defer rf.persist()
 					if ok == true && rf.state == Leader {
 						if args.Term != rf.currentTerm {
 							return
@@ -564,7 +592,11 @@ func (rf *Raft) allAppendEntries() {
 							rf.votedFor = -1
 							rf.currentTerm = reply.Term
 							rf.ClearChange()
-							rf.persist()
+							//rf.persist()
+							return
+						}
+						if reply.ErrTimeout == true {
+							//rf.persist()
 							return
 						}
 						if reply.Success == true && rf.state == Leader {
@@ -585,12 +617,13 @@ func (rf *Raft) allAppendEntries() {
 			} else {
 				//snapshot
 				//fmt.Println(rf.me, "send snapshot to ", i)
-				args := &InstallSnapshotArgs{rf.currentTerm, rf.me, rf.log[0].Index, rf.log[0].Term, rf.persister.ReadSnapshot()}
+				args := &InstallSnapshotArgs{rf.currentTerm, rf.me, rf.log[0].Index, rf.log[0].Term, rf.persister.ReadSnapshot(), rf.timestamp}
 				go func(args *InstallSnapshotArgs, i int) {
 					reply := &InstallSnapshotReply{}
 					ok := rf.peers[i].Call("Raft.InstallSnapshot", args, reply)
 					rf.mu.Lock()
 					defer rf.mu.Unlock()
+					defer rf.persist()
 					if ok == true && rf.state == Leader {
 						if args.Term != rf.currentTerm {
 							return
@@ -600,7 +633,11 @@ func (rf *Raft) allAppendEntries() {
 							rf.votedFor = -1
 							rf.currentTerm = reply.Term
 							rf.ClearChange()
-							rf.persist()
+							//rf.persist()
+							return
+						}
+						if reply.ErrTimeout == true {
+							//rf.persist()
 							return
 						}
 						rf.nextIndex[i] = args.LastIncludeIndex + 1
@@ -749,6 +786,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.state = Follower
 	rf.currentTerm = 0
 	rf.votedFor = -1
+	rf.timestamp = 0
 	rf.log = make([]entries, 0)
 	rf.log = append(rf.log, entries{0, 0, 0})
 	rf.commitIndex = 0
