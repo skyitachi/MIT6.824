@@ -1,19 +1,21 @@
 package raftkv
 
-import "labrpc"
+import (
+	"labrpc"
+)
 import "crypto/rand"
 import "math/big"
-import "sync"
 
 //import "fmt"
 
 type Clerk struct {
 	servers []*labrpc.ClientEnd
 	// You will have to modify this struct.
-	mu            sync.Mutex
 	currentLeader int
 	id            int64
 	seq           int
+
+	//rpcfail		  int
 }
 
 func nrand() int64 {
@@ -30,6 +32,8 @@ func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {
 	ck.currentLeader = 0
 	ck.id = nrand()
 	ck.seq = 1
+
+	//ck.rpcfail = 0
 	return ck
 }
 
@@ -48,18 +52,16 @@ func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {
 func (ck *Clerk) Get(key string) string {
 
 	// You will have to modify this function.
-	ck.mu.Lock()
 	args := GetArgs{key, ck.id, ck.seq}
 	ck.seq++
-	ck.mu.Unlock()
 	i := ck.currentLeader
 	for {
 		reply := GetReply{}
+		//fmt.Println("send rpc to ", i)
 		ok := ck.servers[i].Call("KVServer.Get", &args, &reply)
 		if ok && reply.WrongLeader == false {
-			ck.mu.Lock()
 			ck.currentLeader = i
-			ck.mu.Unlock()
+			//fmt.Println("leader is ", i)
 			if reply.Err == OK {
 				return reply.Value
 			} else if reply.Err == ErrNoKey{
@@ -68,6 +70,14 @@ func (ck *Clerk) Get(key string) string {
 				continue
 			}
 		}
+		//if !ok {
+		//	ck.rpcfail++
+		//	fmt.Println(ck.rpcfail)
+		//}
+		//if reply.WrongLeader {
+		//	fmt.Println("wrong leader")
+		//}
+		//time.Sleep(time.Duration(10) * time.Millisecond)
 		i = (i + 1) % len(ck.servers)
 	}
 }
@@ -84,25 +94,31 @@ func (ck *Clerk) Get(key string) string {
 //
 func (ck *Clerk) PutAppend(key string, value string, op string) {
 	// You will have to modify this function.
-	ck.mu.Lock()
 	args := PutAppendArgs{key, value, op, ck.id, ck.seq}
 	ck.seq++
-	ck.mu.Unlock()
 	//fmt.Println(ck.currentLeader)
 	i := ck.currentLeader
 	for {
 		reply := PutAppendReply{}
+		//fmt.Println("send rpc to ", i)
 		ok := ck.servers[i].Call("KVServer.PutAppend", &args, &reply)
 		if ok && reply.WrongLeader == false {
-			ck.mu.Lock()
 			ck.currentLeader = i
-			ck.mu.Unlock()
+			//fmt.Println("leader is ", i)
 			if reply.Err == OK {
 				return
 			} else if reply.Err == ErrTimeout {
 				continue
 			}
 		}
+		//if !ok {
+		//	ck.rpcfail++
+		//	fmt.Println(ck.rpcfail)
+		//}
+		//if reply.WrongLeader {
+		//	fmt.Println("wrong leader")
+		//}
+		//time.Sleep(time.Duration(10) * time.Millisecond)
 		i = (i + 1) % len(ck.servers)
 	}
 }
