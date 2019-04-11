@@ -73,11 +73,11 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	}
 
 	index, _, isLeader := kv.rf.Start(oop)
-	//fmt.Println("index",index)
 	if !isLeader {
 		kv.mu.Unlock()
 		return ErrWrongLeader, ""
 	}
+	fmt.Println("index",index, "log op:", oop.Opname, "key: ", oop.Key, "value: ", oop.Value, "cid: ", oop.ClientId, "seq: ", oop.Seq)
 	ch := make(chan Op)
 	kv.chanresult[index] = ch
 	kv.mu.Unlock()
@@ -90,7 +90,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	select {
 	case c := <-ch:
 		if kv.CheckSame(c, oop) {
-			//fmt.Println("reply to client:", index)
+			fmt.Println("reply to client:", index)
 			val := ""
 			if oop.Opname == "Get" {
 				kv.mu.Lock()
@@ -109,7 +109,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 
 func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
-	//fmt.Println("Get", args.ClientId, args.Seq, kv.me)
+	fmt.Println("Get", args.ClientId, args.Seq, kv.me)
 	op := Op{"Get", args.Key, "", args.ClientId, args.Seq}
 	err, val := kv.StartCommand(op)
 
@@ -126,7 +126,7 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 
 func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	// Your code here.
-	//fmt.Println(args.Op, args.ClientId, args.Seq,kv.me)
+	fmt.Println(args.Op, args.ClientId, args.Seq, kv.me)
 	op := Op{args.Op, args.Key, args.Value, args.ClientId, args.Seq}
 	err, _ := kv.StartCommand(op)
 	reply.Err = err
@@ -193,6 +193,7 @@ func (kv *KVServer) doApplyOp() {
 		if msg.CommandValid {
 			index := msg.CommandIndex
 			if oop, ok := msg.Command.(Op); ok {
+				fmt.Println(kv.me, " will apply committed log: ", index, oop)
 				kv.Apply(oop)
 				kv.Reply(oop, index)
 				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate {

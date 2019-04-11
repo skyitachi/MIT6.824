@@ -540,6 +540,7 @@ func (rf *Raft) updateCommit() {
 	}
 	if N > rf.commitIndex && rf.state == Leader {
 		rf.commitIndex = min(N, rf.log[rf.GetLen()].Index)
+		fmt.Println("leader is: ", rf.me, "now commit index is: ", rf.commitIndex)
 		rf.chanCommit <- 1
 	}
 }
@@ -785,7 +786,7 @@ func (rf *Raft) doApply() {
 	for {
 		select {
 		case <-rf.chanCommit:
-			//fmt.Println("raft apply:", rf.me, rf.lastApplied)
+			//fmt.Println("raft apply: ", rf.me, rf.lastApplied)
 			//for rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index{
 			for {
 				rf.mu.Lock()
@@ -798,7 +799,7 @@ func (rf *Raft) doApply() {
 					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
 					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
 					rf.mu.Unlock()
-					//fmt.Println(rf.me, "want to apply", rf.lastApplied+1)
+					fmt.Println(rf.me, " want to apply index is: ", rf.lastApplied+1, "raft commit index is: ", rf.commitIndex, "msg is: ", msg)
 					//can't lock when send in channel, dead lock
 					rf.chanApplyMsg <- msg
 					rf.mu.Lock()
