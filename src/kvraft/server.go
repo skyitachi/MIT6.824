@@ -90,7 +90,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	select {
 	case c := <-ch:
 		if kv.CheckSame(c, oop) {
-			fmt.Println("reply to client:", index)
+			//fmt.Println("reply to client:", index)
 			val := ""
 			if oop.Opname == "Get" {
 				kv.mu.Lock()
@@ -102,7 +102,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 			return ErrWrongLeader, ""
 		}
 	case <-time.After(time.Millisecond * 2000):
-		fmt.Println("timeout index", index)
+		//fmt.Println("timeout index", index)
 		return ErrTimeout, ""
 	}
 }

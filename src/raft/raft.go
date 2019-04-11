@@ -65,6 +65,8 @@ type Raft struct {
 	peers     []*labrpc.ClientEnd // RPC end points of all peers
 	persister *Persister          // Object to hold this peer's persisted state
 	me        int                 // this peer's index into peers[]
+	//incs  	  bool
+	//rpcnum	  int
 
 	// Your data here (2A, 2B, 2C).
 	// Look at the paper's Figure 2 for a description of what
@@ -469,6 +471,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 //
 func (rf *Raft) Kill() {
 	// Your code here, if desired.
+	//fmt.Println(rf.me, " send rpc: ", rf.rpcnum)
 }
 
 func (rf *Raft) allRequestVote() {
@@ -481,8 +484,10 @@ func (rf *Raft) allRequestVote() {
 		if i != rf.me && rf.state == Candidate { //must candidate can send requestvote
 			go func(i int) {
 				reply := &RequestVoteReply{}
+
 				ok := rf.sendRequestVote(i, args, reply)
 				rf.mu.Lock()
+				//rf.rpcnum++
 				defer rf.mu.Unlock()
 				if ok == true && rf.state == Candidate {
 					if args.Term != rf.currentTerm { //candidate timeout and start a new election
@@ -537,11 +542,24 @@ func (rf *Raft) updateCommit() {
 		rf.chanCommit <- 1
 	}
 }
+//
+//func (rf *Raft) setInCS() {
+//	rf.incs = true
+//}
+//
+//func (rf *Raft) setNotInCS() {
+//	rf.incs = false
+//}
 
 func (rf *Raft) allAppendEntries() {
 	//rules for leaders to increase the commitIndex
+	//if(rf.incs == true) {
+	//	return
+	//}
 	rf.mu.Lock()
+	//rf.setInCS()
 	defer rf.mu.Unlock()
+	//defer rf.setNotInCS()
 	FirstIndex := rf.log[0].Index
 	rf.updateCommit()
 	rf.timestamp = time.Now().UnixNano()
@@ -579,8 +597,10 @@ func (rf *Raft) allAppendEntries() {
 					reply := &AppendEntriesReply{}
 					//fmt.Println(rf.me)
 					//fmt.Println(rf.me, i)
+
 					ok := rf.peers[i].Call("Raft.AppendEntries", args, reply)
 					rf.mu.Lock()
+					//rf.rpcnum++
 					defer rf.mu.Unlock()
 					defer rf.persist()
 					if ok == true && rf.state == Leader {
@@ -620,8 +640,10 @@ func (rf *Raft) allAppendEntries() {
 				args := &InstallSnapshotArgs{rf.currentTerm, rf.me, rf.log[0].Index, rf.log[0].Term, rf.persister.ReadSnapshot(), rf.timestamp}
 				go func(args *InstallSnapshotArgs, i int) {
 					reply := &InstallSnapshotReply{}
+
 					ok := rf.peers[i].Call("Raft.InstallSnapshot", args, reply)
 					rf.mu.Lock()
+					//rf.rpcnum++
 					defer rf.mu.Unlock()
 					defer rf.persist()
 					if ok == true && rf.state == Leader {
@@ -739,7 +761,7 @@ func (rf *Raft) doStateChange() {
 			time.Sleep(time.Duration(20) * time.Millisecond)
 			select {
 			case <- rf.chanNewLog:
-			case <-time.After(time.Duration(50) * time.Millisecond):
+			case <-time.After(time.Duration(100) * time.Millisecond):
 			}
 		}
 	}
@@ -798,6 +820,8 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.chanApplyMsg = applyCh
 	rf.chanCommit = make(chan int, 10000)
 	rf.chanNewLog = make(chan int, 1)
+
+	//rf.rpcnum = 0
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())

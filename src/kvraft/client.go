@@ -2,6 +2,7 @@ package raftkv
 
 import (
 	"labrpc"
+	"time"
 )
 import "crypto/rand"
 import "math/big"
@@ -58,6 +59,7 @@ func (ck *Clerk) Get(key string) string {
 	for {
 		reply := GetReply{}
 		//fmt.Println("send rpc to ", i)
+		//ck.rpcfail++
 		ok := ck.servers[i].Call("KVServer.Get", &args, &reply)
 		if ok && reply.WrongLeader == false {
 			ck.currentLeader = i
@@ -77,7 +79,7 @@ func (ck *Clerk) Get(key string) string {
 		//if reply.WrongLeader {
 		//	fmt.Println("wrong leader")
 		//}
-		//time.Sleep(time.Duration(10) * time.Millisecond)
+		time.Sleep(time.Duration(10) * time.Millisecond)
 		i = (i + 1) % len(ck.servers)
 	}
 }
@@ -101,6 +103,7 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 	for {
 		reply := PutAppendReply{}
 		//fmt.Println("send rpc to ", i)
+		//ck.rpcfail++
 		ok := ck.servers[i].Call("KVServer.PutAppend", &args, &reply)
 		if ok && reply.WrongLeader == false {
 			ck.currentLeader = i
@@ -118,14 +121,16 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 		//if reply.WrongLeader {
 		//	fmt.Println("wrong leader")
 		//}
-		//time.Sleep(time.Duration(10) * time.Millisecond)
+		time.Sleep(time.Duration(10) * time.Millisecond)
 		i = (i + 1) % len(ck.servers)
 	}
 }
 
 func (ck *Clerk) Put(key string, value string) {
 	ck.PutAppend(key, value, "Put")
+	//fmt.Println("ck rpc number: ", ck.rpcfail)
 }
 func (ck *Clerk) Append(key string, value string) {
 	ck.PutAppend(key, value, "Append")
+	//fmt.Println("ck rpc number: ", ck.rpcfail)
 }
