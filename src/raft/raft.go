@@ -602,7 +602,7 @@ func (rf *Raft) allAppendEntries() {
 					rf.mu.Lock()
 					//rf.rpcnum++
 					defer rf.mu.Unlock()
-					defer rf.persist()
+					//defer rf.persist()
 					if ok == true && rf.state == Leader {
 						if args.Term != rf.currentTerm {
 							return
@@ -612,7 +612,7 @@ func (rf *Raft) allAppendEntries() {
 							rf.votedFor = -1
 							rf.currentTerm = reply.Term
 							rf.ClearChange()
-							//rf.persist()
+							rf.persist()
 							return
 						}
 						if reply.ErrTimeout == true {
@@ -647,7 +647,7 @@ func (rf *Raft) allAppendEntries() {
 					rf.mu.Lock()
 					//rf.rpcnum++
 					defer rf.mu.Unlock()
-					defer rf.persist()
+					//defer rf.persist()
 					if ok == true && rf.state == Leader {
 						if args.Term != rf.currentTerm {
 							return
@@ -657,7 +657,7 @@ func (rf *Raft) allAppendEntries() {
 							rf.votedFor = -1
 							rf.currentTerm = reply.Term
 							rf.ClearChange()
-							//rf.persist()
+							rf.persist()
 							return
 						}
 						if reply.ErrTimeout == true {
