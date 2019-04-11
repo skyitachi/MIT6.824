@@ -102,7 +102,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 			return ErrWrongLeader, ""
 		}
 	case <-time.After(time.Millisecond * 2000):
-		//fmt.Println("timeout index", index)
+		fmt.Println("timeout index", index)
 		return ErrTimeout, ""
 	}
 }

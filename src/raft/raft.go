@@ -93,6 +93,7 @@ type Raft struct {
 	chanApplyMsg      chan ApplyMsg
 	chanCommit        chan int
 	chanNewLog		  chan int
+	chanCopy		  chan int
 }
 
 // return currentTerm and whether this server
@@ -561,7 +562,6 @@ func (rf *Raft) allAppendEntries() {
 	defer rf.mu.Unlock()
 	//defer rf.setNotInCS()
 	FirstIndex := rf.log[0].Index
-	rf.updateCommit()
 	rf.timestamp = time.Now().UnixNano()
 	//N := rf.commitIndex
 	//for i := max(rf.commitIndex+1, FirstIndex+1); i <= rf.log[rf.GetLen()].Index; i++ {
@@ -623,7 +623,9 @@ func (rf *Raft) allAppendEntries() {
 							if len(args.Entries) > 0 {
 								rf.nextIndex[i] = args.Entries[len(args.Entries)-1].Index + 1
 								rf.matchIndex[i] = rf.nextIndex[i] - 1
-								rf.updateCommit()
+								if rf.matchIndex[i] > rf.commitIndex {
+									rf.chanCopy <- 1
+								}
 							}
 						} else if rf.state == Leader {
 							if rf.nextIndex[i] > reply.PrevIndex+1 {
@@ -758,11 +760,23 @@ func (rf *Raft) doStateChange() {
 			}
 		case Leader:
 			go rf.allAppendEntries()
-			time.Sleep(time.Duration(20) * time.Millisecond)
+			time.Sleep(time.Duration(10) * time.Millisecond)
 			select {
 			case <- rf.chanNewLog:
 			case <-time.After(time.Duration(100) * time.Millisecond):
 			}
+		}
+	}
+}
+
+func (rf *Raft) doCommit() {
+	for {
+		select {
+		case <- rf.chanCopy:
+			rf.mu.Lock()
+			rf.updateCommit()
+			rf.chanCopy = make(chan int, 10000)
+			rf.mu.Unlock()
 		}
 	}
 }
@@ -820,14 +834,14 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.chanApplyMsg = applyCh
 	rf.chanCommit = make(chan int, 10000)
 	rf.chanNewLog = make(chan int, 1)
-
+	rf.chanCopy = make(chan int, 10000)
 	//rf.rpcnum = 0
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
 
 	go rf.doStateChange()
-
+	go rf.doCommit()
 	go rf.doApply()
 
 	return rf
