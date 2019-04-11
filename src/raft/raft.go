@@ -736,7 +736,7 @@ func (rf *Raft) doStateChange() {
 			}
 		case Leader:
 			go rf.allAppendEntries()
-			time.Sleep(time.Duration(10) * time.Millisecond)
+			time.Sleep(time.Duration(20) * time.Millisecond)
 			select {
 			case <- rf.chanNewLog:
 			case <-time.After(time.Duration(50) * time.Millisecond):
