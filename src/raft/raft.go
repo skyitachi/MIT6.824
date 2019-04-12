@@ -807,7 +807,7 @@ func (rf *Raft) doApply() {
 					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
 					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
 					fmt.Println(rf.me, " want to apply index is: ", rf.lastApplied+1, "raft commit index is: ", rf.commitIndex, "msg is: ", msg)
-					//rf.lastApplied++
+					rf.lastApplied++
 					rf.mu.Unlock()
 					//can't lock when send in channel, dead lock
 					rf.chanCanApply <- 1
@@ -815,7 +815,7 @@ func (rf *Raft) doApply() {
 					<- rf.chanCanApply
 					rf.mu.Lock()
 				}
-				rf.lastApplied = min(rf.lastApplied + 1, rf.commitIndex)
+				//rf.lastApplied = min(rf.lastApplied + 1, rf.commitIndex)
 				rf.mu.Unlock()
 				//fmt.Println(rf.me, "lastApplied", rf.lastApplied, rf.commitIndex)
 			}
@@ -837,8 +837,6 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.timestamp = 0
 	rf.log = make([]entries, 0)
 	rf.log = append(rf.log, entries{0, 0, 0})
-	rf.commitIndex = 0
-	rf.lastApplied = 0
 
 	rf.chanvoteGranted = make(chan int, 10000)
 	rf.chanAppendEntries = make(chan int, 10000)
@@ -852,6 +850,8 @@ func Make(peers []*labrpc.ClientEnd, me int,
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
+	rf.commitIndex = rf.log[0].Index
+	rf.lastApplied = rf.log[0].Index
 
 	go rf.doStateChange()
 	//go rf.doCommit()
