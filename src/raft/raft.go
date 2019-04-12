@@ -390,9 +390,9 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.lastApplied = args.LastIncludeIndex
 	rf.commitIndex = rf.lastApplied
 	rf.mu.Unlock()
-	<- rf.chanCanApply
-	rf.chanApplyMsg <- msg
 	rf.chanCanApply <- 1
+	rf.chanApplyMsg <- msg
+	<- rf.chanCanApply
 	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
 }
 
@@ -807,14 +807,15 @@ func (rf *Raft) doApply() {
 					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
 					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
 					fmt.Println(rf.me, " want to apply index is: ", rf.lastApplied+1, "raft commit index is: ", rf.commitIndex, "msg is: ", msg)
-					rf.lastApplied++
+					//rf.lastApplied++
 					rf.mu.Unlock()
 					//can't lock when send in channel, dead lock
-					<- rf.chanCanApply
-					rf.chanApplyMsg <- msg
 					rf.chanCanApply <- 1
+					rf.chanApplyMsg <- msg
+					<- rf.chanCanApply
 					rf.mu.Lock()
 				}
+				rf.lastApplied = min(rf.lastApplied + 1, rf.commitIndex)
 				rf.mu.Unlock()
 				//fmt.Println(rf.me, "lastApplied", rf.lastApplied, rf.commitIndex)
 			}
@@ -845,7 +846,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.chanApplyMsg = applyCh
 	rf.chanCommit = make(chan int, 10000)
 	rf.chanNewLog = make(chan int, 1)
-	rf.chanCanApply = make(chan int)
+	rf.chanCanApply = make(chan int, 1)
 	//rf.chanCopy = make(chan int, 10000)
 	//rf.rpcnum = 0
 
