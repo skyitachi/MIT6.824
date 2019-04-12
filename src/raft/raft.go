@@ -303,6 +303,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		rf.chanAppendEntries <- 1
 		if args.TimeStamp <= rf.timestamp {
 			//this rpc is timeout, not in order
+			fmt.Println(rf.me, "this append entries rpc is timeout")
 			reply.ErrTimeout = true
 			return
 		}
@@ -338,6 +339,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 				rf.chanCommit <- 1
 				//fmt.Println("commitIndex: ", rf.me, rf.commitIndex)
 			}
+			fmt.Println(rf.me, "append entries, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
 		}
 	}
 }
@@ -362,6 +364,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 
 	if args.TimeStamp <= rf.timestamp {
 		//this rpc is timeout, not in order
+		fmt.Println(rf.me, "this install snapshot rpc is timeout")
 		reply.ErrTimeout = true
 		rf.mu.Unlock()
 		return
@@ -387,6 +390,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.commitIndex = rf.lastApplied
 	rf.mu.Unlock()
 	rf.chanApplyMsg <- msg
+	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
 }
 
 //
@@ -639,7 +643,7 @@ func (rf *Raft) allAppendEntries() {
 				}(args, i)
 			} else {
 				//snapshot
-				//fmt.Println(rf.me, "send snapshot to ", i)
+				fmt.Println(rf.me, "send snapshot to ", i, "firstindex is ", FirstIndex)
 				args := &InstallSnapshotArgs{rf.currentTerm, rf.me, rf.log[0].Index, rf.log[0].Term, rf.persister.ReadSnapshot(), rf.timestamp}
 				go func(args *InstallSnapshotArgs, i int) {
 					reply := &InstallSnapshotReply{}
@@ -681,6 +685,7 @@ func (rf *Raft) SaveSnapshot(index int, data []byte) {
 	if index < FirstIndex {
 		return
 	}
+	fmt.Println(rf.me, "do snapshot, trucate index is: ", index)
 	rf.log = rf.log[index-FirstIndex:]
 	rf.persist()
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), data)

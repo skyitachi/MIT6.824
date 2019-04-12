@@ -109,7 +109,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 
 func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
-	fmt.Println("Get", args.ClientId, args.Seq, kv.me)
+	fmt.Println("Get", args.Key, args.ClientId, args.Seq, kv.me)
 	op := Op{"Get", args.Key, "", args.ClientId, args.Seq}
 	err, val := kv.StartCommand(op)
 
@@ -126,7 +126,7 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 
 func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	// Your code here.
-	fmt.Println(args.Op, args.ClientId, args.Seq, kv.me)
+	fmt.Println(args.Op, args.Key, args.Value,args.ClientId, args.Seq, kv.me)
 	op := Op{args.Op, args.Key, args.Value, args.ClientId, args.Seq}
 	err, _ := kv.StartCommand(op)
 	reply.Err = err
