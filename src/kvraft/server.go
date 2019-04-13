@@ -62,6 +62,10 @@ func (kv *KVServer) CheckSame(c1 Op, c2 Op) bool {
 
 func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	kv.mu.Lock()
+	if kv.maxraftstate != -1 && kv.rf.GetStateSize() > kv.maxraftstate {
+		kv.mu.Unlock()
+		return ErrWrongLeader, ""
+	}
 
 	if res, ok := kv.detectDup[oop.ClientId]; ok && res.Seq >= oop.Seq {
 		resvalue := ""
