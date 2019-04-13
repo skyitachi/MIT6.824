@@ -57,6 +57,7 @@ func (ck *Clerk) Get(key string) string {
 	ck.seq++
 	i := ck.currentLeader
 	for {
+		retry_num := 0
 		reply := GetReply{}
 		//fmt.Println("send rpc to ", i)
 		//ck.rpcfail++
@@ -69,7 +70,11 @@ func (ck *Clerk) Get(key string) string {
 			} else if reply.Err == ErrNoKey{
 				return ""
 			} else if reply.Err == ErrTimeout{
-				continue
+				time.Sleep(time.Duration(5) * time.Millisecond)
+				retry_num++
+				if retry_num <= 5 {
+					continue
+				}
 			}
 		}
 		//if !ok {
@@ -111,6 +116,7 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 			if reply.Err == OK {
 				return
 			} else if reply.Err == ErrTimeout {
+				time.Sleep(time.Duration(10) * time.Millisecond)
 				continue
 			}
 		}

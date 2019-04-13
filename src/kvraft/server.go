@@ -62,10 +62,10 @@ func (kv *KVServer) CheckSame(c1 Op, c2 Op) bool {
 
 func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	kv.mu.Lock()
-	if kv.maxraftstate != -1 && kv.rf.GetStateSize() > kv.maxraftstate {
-		kv.mu.Unlock()
-		return ErrWrongLeader, ""
-	}
+	//if kv.maxraftstate != -1 && kv.rf.GetStateSize() > kv.maxraftstate {
+	//	kv.mu.Unlock()
+	//	return ErrTimeout, ""
+	//}
 
 	if res, ok := kv.detectDup[oop.ClientId]; ok && res.Seq >= oop.Seq {
 		resvalue := ""
@@ -200,7 +200,7 @@ func (kv *KVServer) doApplyOp() {
 				fmt.Println(kv.me, " will apply committed log: ", index, oop)
 				kv.Apply(oop)
 				kv.Reply(oop, index)
-				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate && index == kv.rf.GetCommitIndex() {
+				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate{ //&& index == kv.rf.GetCommitIndex() {
 					kv.SaveSnapshot(index)
 				}
 			}
