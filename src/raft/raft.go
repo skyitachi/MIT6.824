@@ -117,6 +117,13 @@ func (rf *Raft) GetLen() int {
 	return len(rf.log) - 1
 }
 
+func (rf *Raft) GetCommitIndex() int {
+	rf.mu.Lock()
+	res := rf.commitIndex
+	rf.mu.Unlock()
+	return res
+}
+
 //
 // save Raft's persistent state to stable storage,
 // where it can later be retrieved after a crash and restart.
@@ -389,11 +396,11 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	msg := ApplyMsg{CommandValid: false, Snapshot: args.Snapshot}
 	rf.lastApplied = args.LastIncludeIndex
 	rf.commitIndex = rf.lastApplied
+	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
 	rf.mu.Unlock()
 	rf.chanCanApply <- 1
 	rf.chanApplyMsg <- msg
 	<- rf.chanCanApply
-	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
 }
 
 //
@@ -688,7 +695,7 @@ func (rf *Raft) SaveSnapshot(index int, data []byte) {
 	if index < FirstIndex {
 		return
 	}
-	fmt.Println(rf.me, "do snapshot, trucate index is: ", index)
+	fmt.Println(rf.me, "do snapshot, trucate index is: ", index, "current commit id is ", rf.commitIndex, "apply id is ", rf.lastApplied)
 	rf.log = rf.log[index-FirstIndex:]
 	rf.persist()
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), data)
@@ -726,7 +733,7 @@ func (rf *Raft) doStateChange() {
 				rf.mu.Lock()
 				rf.ClearChange()
 				rf.mu.Unlock()
-			case <-time.After(time.Millisecond * time.Duration(750+rand.Int31n(500))): //election timeout
+			case <-time.After(time.Millisecond * time.Duration(500+rand.Int31n(500))): //election timeout
 				rf.mu.Lock()
 				if len(rf.chanvoteGranted) == 0 && len(rf.chanAppendEntries) == 0 {
 					rf.state = Candidate
@@ -740,7 +747,7 @@ func (rf *Raft) doStateChange() {
 		case Candidate:
 			go rf.allRequestVote() //send rpc
 			select {
-			case <-time.After(time.Millisecond * time.Duration(750+rand.Int31n(500))): //election timeout and start a new election
+			case <-time.After(time.Millisecond * time.Duration(500+rand.Int31n(500))): //election timeout and start a new election
 				rf.mu.Lock()
 				if len(rf.chanvoteGranted) == 0 && len(rf.chanAppendEntries) == 0 {
 					rf.state = Candidate

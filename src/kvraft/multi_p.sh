@@ -1,7 +1,7 @@
 #!/bin/bash
 
-for i in {1..1}
+for i in {1..2}
 do
    bash ./multi_test.sh "${i}.txt" &
-   sleep 5
+   sleep 10
 done
