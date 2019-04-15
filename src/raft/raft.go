@@ -733,7 +733,7 @@ func (rf *Raft) doStateChange() {
 				rf.mu.Lock()
 				rf.ClearChange()
 				rf.mu.Unlock()
-			case <-time.After(time.Millisecond * time.Duration(350+rand.Int31n(500))): //election timeout
+			case <-time.After(time.Millisecond * time.Duration(500+rand.Int31n(500))): //election timeout
 				rf.mu.Lock()
 				if len(rf.chanvoteGranted) == 0 && len(rf.chanAppendEntries) == 0 {
 					rf.state = Candidate
@@ -747,7 +747,7 @@ func (rf *Raft) doStateChange() {
 		case Candidate:
 			go rf.allRequestVote() //send rpc
 			select {
-			case <-time.After(time.Millisecond * time.Duration(350+rand.Int31n(500))): //election timeout and start a new election
+			case <-time.After(time.Millisecond * time.Duration(500+rand.Int31n(500))): //election timeout and start a new election
 				rf.mu.Lock()
 				if len(rf.chanvoteGranted) == 0 && len(rf.chanAppendEntries) == 0 {
 					rf.state = Candidate
@@ -779,7 +779,7 @@ func (rf *Raft) doStateChange() {
 			time.Sleep(time.Duration(10) * time.Millisecond)
 			select {
 			case <- rf.chanNewLog:
-			case <-time.After(time.Duration(50) * time.Millisecond):
+			case <-time.After(time.Duration(100) * time.Millisecond):
 			}
 		}
 	}
