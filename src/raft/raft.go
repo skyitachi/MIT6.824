@@ -341,10 +341,10 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		} else {
 			// TODO
 			// add check raftstate
-			if rf.maxraftstate != -1 && rf.GetStateSize() >= rf.maxraftstate {
-				reply.LogTooLong = true
-				return
-			}
+			//if rf.maxraftstate != -1 && rf.GetStateSize() >= rf.maxraftstate {
+			//	reply.LogTooLong = true
+			//	return
+			//}
 			reply.Success = true
 			if rf.GetLen() >= NowIndex+1 {
 				rf.log = rf.log[:NowIndex+1]
