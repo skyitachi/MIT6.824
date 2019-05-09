@@ -4,3 +4,4 @@ api.key
 .idea
 .DS*
 taq
+./src/kvraft/*.txt
