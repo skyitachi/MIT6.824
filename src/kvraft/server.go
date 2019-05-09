@@ -196,7 +196,7 @@ func (kv *KVServer) doApplyOp() {
 				fmt.Println(kv.me, " will apply committed log: ", index, oop)
 				kv.Apply(oop)
 				kv.Reply(oop, index)
-				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate && index == kv.rf.GetCommitIndex() {
+				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate {//&& index == kv.rf.GetCommitIndex() {
 					kv.SaveSnapshot(index)
 				}
 			}
@@ -270,6 +270,7 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.LoadSnapshot(persister.ReadSnapshot())
 	kv.applyCh = make(chan raft.ApplyMsg)
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
+	kv.rf.SetMaxRaftState(maxraftstate)
 
 	// You may need initialization code here.
 

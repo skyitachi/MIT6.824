@@ -94,6 +94,8 @@ type Raft struct {
 	chanCommit        chan int
 	chanNewLog		  chan int
 	chanCanApply	  chan int
+
+	maxraftstate	  int
 	//chanCopy		  chan int
 }
 
@@ -322,6 +324,9 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			reply.PrevIndex = FirstIndex
 			return
 		}
+		// TODO
+		// add check raftstate
+
 		if rf.GetLen() < NowIndex || rf.log[NowIndex].Term != args.PrevLogTerm {
 			reply.Success = false
 			if rf.GetLen() >= NowIndex {
@@ -828,6 +833,10 @@ func (rf *Raft) doApply() {
 			}
 		}
 	}
+}
+
+func (rf *Raft) SetMaxRaftState(raftstate int){
+	rf.maxraftstate = raftstate
 }
 
 func Make(peers []*labrpc.ClientEnd, me int,
