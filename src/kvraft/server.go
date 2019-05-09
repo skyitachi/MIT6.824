@@ -49,7 +49,7 @@ type KVServer struct {
 
 	// Your definitions here.
 	kvdatabase map[string]string
-	detectDup  map[int64]Result
+	detectDup  map[int64]int
 	chanresult map[int]chan Op
 }
 
@@ -63,10 +63,10 @@ func (kv *KVServer) CheckSame(c1 Op, c2 Op) bool {
 func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	kv.mu.Lock()
 
-	if res, ok := kv.detectDup[oop.ClientId]; ok && res.Seq >= oop.Seq {
+	if res, ok := kv.detectDup[oop.ClientId]; ok && res >= oop.Seq {
 		resvalue := ""
-		if res.Opname == "Get" {
-			resvalue = res.Value
+		if oop.Opname == "Get" {
+			resvalue = kv.kvdatabase[oop.Key]
 		}
 		kv.mu.Unlock()
 		return OK, resvalue
@@ -93,9 +93,9 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 			fmt.Println("reply to client:", index)
 			val := ""
 			if oop.Opname == "Get" {
-				kv.mu.Lock()
-				val = kv.detectDup[oop.ClientId].Value
-				kv.mu.Unlock()
+				//kv.mu.Lock()
+				val = c.Value
+				//kv.mu.Unlock()
 			}
 			return OK, val
 		} else {
@@ -158,41 +158,42 @@ func max(a int, b int) int {
 func (kv *KVServer) DupCheck(cliid int64, seqid int) bool {
 	res, ok := kv.detectDup[cliid]
 	if ok {
-		return seqid > res.Seq
+		return seqid > res
 	}
 	return true
 }
 
 func (kv *KVServer) Apply(oop Op) {
-	kv.mu.Lock()
+	//kv.mu.Lock()
 	if kv.DupCheck(oop.ClientId, oop.Seq) {
 		switch oop.Opname {
 		case "Put":
 			kv.kvdatabase[oop.Key] = oop.Value
-			fmt.Println(kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0):])
+			fmt.Println(kv.me, "after put", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0):])
 		case "Append":
 			if _, ok := kv.kvdatabase[oop.Key]; ok {
 				kv.kvdatabase[oop.Key] += oop.Value
 			} else {
 				kv.kvdatabase[oop.Key] = oop.Value
 			}
-			fmt.Println(kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0):])
+			fmt.Println(kv.me, "after append", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0):])
 		}
-		kv.detectDup[oop.ClientId] = Result{oop.Seq, oop.Opname, kv.kvdatabase[oop.Key]}
+		kv.detectDup[oop.ClientId] = oop.Seq
 	}
-	kv.mu.Unlock()
+	//kv.mu.Unlock()
 }
 
 func (kv *KVServer) Reply(oop Op, index int) {
-	kv.mu.Lock()
+	//kv.mu.Lock()
 	ch, ok := kv.chanresult[index]
-	kv.mu.Unlock()
+	//kv.mu.Unlock()
+	res := Op{oop.Opname, oop.Key, kv.kvdatabase[oop.Key], oop.ClientId, oop.Seq}
 	if ok {
 		select {
 		case <-ch:
 		default:
 		}
-		ch <- oop
+		ch <- res
 	}
 }
 
@@ -202,12 +203,15 @@ func (kv *KVServer) doApplyOp() {
 		if msg.CommandValid {
 			index := msg.CommandIndex
 			if oop, ok := msg.Command.(Op); ok {
-				fmt.Println(kv.me, " will apply committed log: ", index, oop)
+				fmt.Println(kv.me, " will apply log: ", index, oop)
+				kv.mu.Lock()
 				kv.Apply(oop)
 				kv.Reply(oop, index)
+				fmt.Println(kv.me, " apply log finish: ", index, oop)
 				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate && index == kv.rf.GetCommitIndex() {
 					kv.SaveSnapshot(index)
 				}
+				kv.mu.Unlock()
 			}
 		} else {
 			kv.LoadSnapshot(msg.Snapshot)
@@ -216,15 +220,9 @@ func (kv *KVServer) doApplyOp() {
 }
 
 func (kv *KVServer) SaveSnapshot(index int) {
-	kv.mu.Lock()
-	defer kv.mu.Unlock()
-
-	w := new(bytes.Buffer)
-	e := labgob.NewEncoder(w)
-	e.Encode(kv.kvdatabase)
-	e.Encode(kv.detectDup)
-	data := w.Bytes()
-	kv.rf.SaveSnapshot(index, data)
+	//kv.mu.Lock()
+	//defer kv.mu.Unlock()
+	kv.rf.SaveSnapshot(index, kv.kvdatabase, kv.detectDup)
 }
 
 func (kv *KVServer) LoadSnapshot(snapshot []byte) {
@@ -237,7 +235,7 @@ func (kv *KVServer) LoadSnapshot(snapshot []byte) {
 	s := bytes.NewBuffer(snapshot)
 	d := labgob.NewDecoder(s)
 	var kvdb map[string]string
-	var dup map[int64]Result
+	var dup map[int64]int
 	if d.Decode(&kvdb) != nil || d.Decode(&dup) != nil {
 		fmt.Println("server ", kv.me, " readsnapshot wrong!")
 	} else {
@@ -245,6 +243,7 @@ func (kv *KVServer) LoadSnapshot(snapshot []byte) {
 		kv.kvdatabase = kvdb
 		kv.detectDup = dup
 		kv.mu.Unlock()
+		fmt.Println(kv.me, " loadsnaphost")
 	}
 }
 
@@ -273,7 +272,7 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 
 	// You may need initialization code here.
 	kv.kvdatabase = make(map[string]string)
-	kv.detectDup = make(map[int64]Result)
+	kv.detectDup = make(map[int64]int)
 	kv.chanresult = make(map[int]chan Op)
 
 	kv.LoadSnapshot(persister.ReadSnapshot())

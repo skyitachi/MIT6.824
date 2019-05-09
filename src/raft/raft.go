@@ -358,7 +358,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 				rf.chanCommit <- 1
 				//fmt.Println("commitIndex: ", rf.me, rf.commitIndex)
 			}
-			fmt.Println(rf.me, "append entries, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
+			fmt.Println(rf.me, "append entries, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied, "now last 10 log is: ", rf.log[max(0, rf.GetLen() - 10):])
 		}
 	}
 }
@@ -407,7 +407,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	msg := ApplyMsg{CommandValid: false, Snapshot: args.Snapshot}
 	rf.lastApplied = args.LastIncludeIndex
 	rf.commitIndex = rf.lastApplied
-	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
+	fmt.Println(rf.me, "install snapshot, commit index ", rf.commitIndex, "apply index ", rf.lastApplied, "now log is: ", rf.log[: min(5, rf.GetLen())])
 	rf.mu.Unlock()
 	rf.chanCanApply <- 1
 	rf.chanApplyMsg <- msg
@@ -704,17 +704,23 @@ func (rf *Raft) allAppendEntries() {
 	}
 }
 
-func (rf *Raft) SaveSnapshot(index int, data []byte) {
+func (rf *Raft) SaveSnapshot(index int, kvdatabase map[string]string, detectDup map[int64]int) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	FirstIndex := rf.log[0].Index
 	if index < FirstIndex {
 		return
 	}
-	fmt.Println(rf.me, "do snapshot, trucate index is: ", index, "current commit id is ", rf.commitIndex, "apply id is ", rf.lastApplied)
+	fmt.Println(rf.me, "start save snapshot, index is: ", index, "commit id ", rf.commitIndex, "apply id ", rf.lastApplied)
 	rf.log = rf.log[index-FirstIndex:]
 	rf.persist()
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	e.Encode(kvdatabase)
+	e.Encode(detectDup)
+	data := w.Bytes()
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), data)
+	fmt.Println(rf.me, "save snapshot successful, now log is: ", rf.log[: min(rf.GetLen(), 5)])
 }
 
 func (rf *Raft) GetStateSize() int {
@@ -829,7 +835,7 @@ func (rf *Raft) doApply() {
 				if rf.lastApplied+1 >= FirstIndex {
 					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
 					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
-					fmt.Println(rf.me, " want to apply index is: ", rf.lastApplied+1, "raft commit index is: ", rf.commitIndex, "msg is: ", msg)
+					fmt.Println(rf.me, " want apply index is: ", rf.lastApplied+1, "commit index is: ", rf.commitIndex, "msg is: ", msg)
 					rf.lastApplied++
 					rf.mu.Unlock()
 					//can't lock when send in channel, dead lock
