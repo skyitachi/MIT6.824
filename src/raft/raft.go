@@ -227,6 +227,7 @@ type AppendEntriesReply struct {
 	PrevIndex int
 	Success   bool
 	ErrTimeout bool
+	LogTooLong bool
 }
 
 type InstallSnapshotArgs struct {
@@ -309,6 +310,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	reply.Success = false
 	reply.PrevIndex = args.PrevLogIndex
 	reply.ErrTimeout = false
+	reply.LogTooLong = false
 	if args.Term >= rf.currentTerm {
 		rf.chanAppendEntries <- 1
 		if args.TimeStamp <= rf.timestamp {
@@ -326,6 +328,10 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		}
 		// TODO
 		// add check raftstate
+		if rf.maxraftstate != -1 && rf.GetStateSize() >= rf.maxraftstate {
+			reply.LogTooLong = true
+			return
+		}
 
 		if rf.GetLen() < NowIndex || rf.log[NowIndex].Term != args.PrevLogTerm {
 			reply.Success = false
@@ -637,6 +643,11 @@ func (rf *Raft) allAppendEntries() {
 						}
 						if reply.ErrTimeout == true {
 							//rf.persist()
+							return
+						}
+						if reply.LogTooLong == true {
+							// follow log to long, send snapshot
+							rf.nextIndex[i] = 1
 							return
 						}
 						if reply.Success == true && rf.state == Leader {

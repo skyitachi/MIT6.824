@@ -205,7 +205,7 @@ func (kv *KVServer) doApplyOp() {
 				fmt.Println(kv.me, " will apply committed log: ", index, oop)
 				kv.Apply(oop)
 				kv.Reply(oop, index)
-				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate {//&& index == kv.rf.GetCommitIndex() {
+				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate && index == kv.rf.GetCommitIndex() {
 					kv.SaveSnapshot(index)
 				}
 			}
