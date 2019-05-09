@@ -326,12 +326,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			reply.PrevIndex = FirstIndex
 			return
 		}
-		// TODO
-		// add check raftstate
-		if rf.maxraftstate != -1 && rf.GetStateSize() >= rf.maxraftstate {
-			reply.LogTooLong = true
-			return
-		}
 
 		if rf.GetLen() < NowIndex || rf.log[NowIndex].Term != args.PrevLogTerm {
 			reply.Success = false
@@ -345,6 +339,12 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 				reply.PrevIndex = rf.log[rf.GetLen()].Index
 			}
 		} else {
+			// TODO
+			// add check raftstate
+			if rf.maxraftstate != -1 && rf.GetStateSize() >= rf.maxraftstate {
+				reply.LogTooLong = true
+				return
+			}
 			reply.Success = true
 			if rf.GetLen() >= NowIndex+1 {
 				rf.log = rf.log[:NowIndex+1]
