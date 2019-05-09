@@ -148,6 +148,13 @@ func (kv *KVServer) Kill() {
 	// Your code here, if desired.
 }
 
+func max(a int, b int) int {
+	if a > b{
+		return a
+	}
+	return b
+}
+
 func (kv *KVServer) DupCheck(cliid int64, seqid int) bool {
 	res, ok := kv.detectDup[cliid]
 	if ok {
@@ -162,12 +169,14 @@ func (kv *KVServer) Apply(oop Op) {
 		switch oop.Opname {
 		case "Put":
 			kv.kvdatabase[oop.Key] = oop.Value
+			fmt.Println(kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0):])
 		case "Append":
 			if _, ok := kv.kvdatabase[oop.Key]; ok {
 				kv.kvdatabase[oop.Key] += oop.Value
 			} else {
 				kv.kvdatabase[oop.Key] = oop.Value
 			}
+			fmt.Println(kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0):])
 		}
 		kv.detectDup[oop.ClientId] = Result{oop.Seq, oop.Opname, kv.kvdatabase[oop.Key]}
 	}
