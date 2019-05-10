@@ -178,7 +178,7 @@ func (rf *Raft) readPersist(data []byte) {
 	var llog []entries
 	var tm   int64
 	var commitid int
-	if d.Decode(&curt) != nil || d.Decode(&vote) != nil || d.Decode(&commitid)|| d.Decode(&llog) != nil || d.Decode(&tm) != nil {
+	if d.Decode(&curt) != nil || d.Decode(&vote) != nil || d.Decode(&commitid) != nil || d.Decode(&llog) != nil || d.Decode(&tm) != nil {
 		fmt.Println("server ", rf.me, " readPersist wrong!")
 	} else {
 		rf.mu.Lock()
