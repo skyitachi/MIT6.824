@@ -92,7 +92,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 		if kv.CheckSame(c, oop) {
 			fmt.Println("reply to client:", index)
 			val := ""
-			if oop.Opname == "Get" {
+			if c.Opname == "Get" {
 				//kv.mu.Lock()
 				val = c.Value
 				//kv.mu.Unlock()

@@ -144,6 +144,7 @@ func (rf *Raft) persist() {
 	e := labgob.NewEncoder(w)
 	e.Encode(rf.currentTerm)
 	e.Encode(rf.votedFor)
+	e.Encode(rf.commitIndex)
 	e.Encode(rf.log) //only three presistent state on all server
 	e.Encode(rf.timestamp)
 	data := w.Bytes()
@@ -176,13 +177,15 @@ func (rf *Raft) readPersist(data []byte) {
 	var vote int
 	var llog []entries
 	var tm   int64
-	if d.Decode(&curt) != nil || d.Decode(&vote) != nil || d.Decode(&llog) != nil || d.Decode(&tm) != nil {
+	var commitid int
+	if d.Decode(&curt) != nil || d.Decode(&vote) != nil || d.Decode(&commitid)|| d.Decode(&llog) != nil || d.Decode(&tm) != nil {
 		fmt.Println("server ", rf.me, " readPersist wrong!")
 	} else {
 		rf.mu.Lock()
 		rf.currentTerm = curt
 		rf.ClearChange()
 		rf.votedFor = vote
+		rf.commitIndex = commitid
 		rf.log = llog
 		rf.timestamp = tm
 		rf.mu.Unlock()
@@ -883,7 +886,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
-	rf.commitIndex = rf.log[0].Index
+	//rf.commitIndex = rf.log[0].Index
 	rf.lastApplied = rf.log[0].Index
 
 	go rf.doStateChange()
