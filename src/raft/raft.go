@@ -712,13 +712,13 @@ func (rf *Raft) SaveSnapshot(index int, kvdatabase map[string]string, detectDup 
 		return
 	}
 	fmt.Println(rf.me, "start save snapshot, index is: ", index, "commit id ", rf.commitIndex, "apply id ", rf.lastApplied)
-	rf.log = rf.log[index-FirstIndex:]
-	rf.persist()
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
 	e.Encode(kvdatabase)
 	e.Encode(detectDup)
 	data := w.Bytes()
+	rf.log = rf.log[index-FirstIndex:]
+	rf.persist()
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), data)
 	fmt.Println(rf.me, "save snapshot successful, now log is: ", rf.log[: min(rf.GetLen(), 5)])
 }
