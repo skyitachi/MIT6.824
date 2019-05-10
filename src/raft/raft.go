@@ -405,11 +405,11 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		rf.log = make([]entries, 0)
 		rf.log = append(rf.log, entries{0, args.LastIncludeTerm, args.LastIncludeIndex})
 	}
+	rf.lastApplied = args.LastIncludeIndex
+	rf.commitIndex = rf.lastApplied
 	rf.persist()
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), args.Snapshot)
 	msg := ApplyMsg{CommandValid: false, Snapshot: args.Snapshot}
-	rf.lastApplied = args.LastIncludeIndex
-	rf.commitIndex = rf.lastApplied
 	fmt.Println(rf.me, "install snapshot, commit index ", rf.commitIndex, "apply index ", rf.lastApplied, "now log is: ", rf.log[: min(5, rf.GetLen())])
 	rf.mu.Unlock()
 	rf.chanCanApply <- 1
@@ -570,6 +570,7 @@ func (rf *Raft) updateCommit() {
 		rf.commitIndex = min(N, rf.log[rf.GetLen()].Index)
 		fmt.Println("leader is: ", rf.me, "now commit index is: ", rf.commitIndex)
 		rf.chanCommit <- 1
+		rf.persist()
 	}
 }
 //
