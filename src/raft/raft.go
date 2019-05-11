@@ -239,6 +239,7 @@ type InstallSnapshotArgs struct {
 	LastIncludeIndex int
 	LastIncludeTerm  int
 	Snapshot         []byte
+	Entries 		 []entries
 	TimeStamp		 int64
 }
 
@@ -278,20 +279,21 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	defer rf.persist()
 	if args.Term > rf.currentTerm {
 		rf.currentTerm = args.Term
+		rf.votedFor = -1
+		//rf.persist()
 		rf.ClearChange()
 		rf.state = Follower
-		rf.votedFor = -1
-
 	}
 	reply.Term = rf.currentTerm
 	reply.VoteGranted = false
 	if args.Term >= rf.currentTerm {
 		if rf.votedFor == -1 || rf.votedFor == args.CandidateId {
 			if args.LastLogTerm > rf.log[rf.GetLen()].Term || (args.LastLogTerm == rf.log[rf.GetLen()].Term && args.LastLogIndex >= rf.log[rf.GetLen()].Index) {
-				rf.chanvoteGranted <- 1
 				reply.VoteGranted = true
 				rf.state = Follower
 				rf.votedFor = args.CandidateId
+				rf.chanvoteGranted <- 1
+				//rf.persist()
 				//fmt.Println(rf.me, "voted for ", rf.votedFor)
 			}
 		}
@@ -302,11 +304,12 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	//have no entries
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
-	defer rf.persist()
+	//defer rf.persist()
 	if args.Term > rf.currentTerm {
 		rf.currentTerm = args.Term
-		rf.ClearChange()
 		rf.votedFor = -1
+		rf.persist()
+		rf.ClearChange()
 		rf.state = Follower
 	}
 	reply.Term = rf.currentTerm
@@ -341,6 +344,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			} else {
 				reply.PrevIndex = rf.log[rf.GetLen()].Index
 			}
+			rf.persist()
 		} else {
 			// TODO
 			// add check raftstate
@@ -358,8 +362,11 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			// }
 			if rf.commitIndex < min(args.LeaderCommit, rf.log[rf.GetLen()].Index) { //rules for followers to increase commitIndex
 				rf.commitIndex = min(args.LeaderCommit, rf.log[rf.GetLen()].Index)
+				rf.persist()
 				rf.chanCommit <- 1
 				//fmt.Println("commitIndex: ", rf.me, rf.commitIndex)
+			}else{
+				rf.persist()
 			}
 			fmt.Println(rf.me, "append entries, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied, "now last 10 log is: ", rf.log[max(0, rf.GetLen() - 10):])
 		}
@@ -375,8 +382,9 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	}
 	if rf.currentTerm < args.Term {
 		rf.currentTerm = args.Term
-		rf.ClearChange()
 		rf.votedFor = -1
+		rf.persist()
+		rf.ClearChange()
 		rf.state = Follower
 	}
 	reply.Term = rf.currentTerm
@@ -396,15 +404,11 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	FirstIndex := rf.log[0].Index
 	NowIndex := args.LastIncludeIndex - FirstIndex
 	if NowIndex < 0 {
+		rf.persist()
 		rf.mu.Unlock()
 		return
 	}
-	if rf.GetLen() >= NowIndex && rf.log[NowIndex].Term == args.LastIncludeTerm {
-		rf.log = rf.log[NowIndex:]
-	} else {
-		rf.log = make([]entries, 0)
-		rf.log = append(rf.log, entries{0, args.LastIncludeTerm, args.LastIncludeIndex})
-	}
+	rf.log = args.Entries
 	rf.lastApplied = args.LastIncludeIndex
 	rf.commitIndex = rf.lastApplied
 	rf.persist()
@@ -478,11 +482,11 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		index = rf.log[rf.GetLen()].Index + 1
 		//fmt.Println("a log entry size is: ", unsafe.Sizeof(entries{command, term, index}))
 		rf.log = append(rf.log, entries{command, term, index})
+		rf.persist()
 		if len(rf.chanNewLog) == 0 {
 			rf.chanNewLog <- 1
 		}
 		//newlog = true
-		rf.persist()
 	}
 	//if newlog {
 	//	// a new log append, so need to send heartbeat
@@ -526,8 +530,8 @@ func (rf *Raft) allRequestVote() {
 						rf.state = Follower
 						rf.votedFor = -1
 						rf.currentTerm = reply.Term
-						rf.ClearChange()
 						rf.persist()
+						rf.ClearChange()
 						return
 					}
 					if reply.VoteGranted == true {
@@ -568,9 +572,9 @@ func (rf *Raft) updateCommit() {
 	}
 	if N > rf.commitIndex && rf.state == Leader {
 		rf.commitIndex = min(N, rf.log[rf.GetLen()].Index)
+		rf.persist()
 		fmt.Println("leader is: ", rf.me, "now commit index is: ", rf.commitIndex)
 		rf.chanCommit <- 1
-		rf.persist()
 	}
 }
 //
@@ -593,26 +597,7 @@ func (rf *Raft) allAppendEntries() {
 	//defer rf.setNotInCS()
 	FirstIndex := rf.log[0].Index
 	rf.timestamp = time.Now().UnixNano()
-	//N := rf.commitIndex
-	//for i := max(rf.commitIndex+1, FirstIndex+1); i <= rf.log[rf.GetLen()].Index; i++ {
-	//	num := 1
-	//	for j := range rf.peers {
-	//		if j != rf.me {
-	//			if rf.matchIndex[j] >= i {
-	//				if rf.log[i-FirstIndex].Term == rf.currentTerm {
-	//					num++
-	//				}
-	//			}
-	//		}
-	//	}
-	//	if num > len(rf.peers)/2 {
-	//		N = i
-	//	}
-	//}
-	//if N > rf.commitIndex && rf.state == Leader {
-	//	rf.commitIndex = min(N, rf.log[rf.GetLen()].Index)
-	//	rf.chanCommit <- 1
-	//}
+
 	for i := 0; i < len(rf.peers); i++ {
 		if i != rf.me && rf.state == Leader {
 			if rf.nextIndex[i] > FirstIndex {
@@ -641,8 +626,8 @@ func (rf *Raft) allAppendEntries() {
 							rf.state = Follower
 							rf.votedFor = -1
 							rf.currentTerm = reply.Term
-							rf.ClearChange()
 							rf.persist()
+							rf.ClearChange()
 							return
 						}
 						if reply.ErrTimeout == true {
@@ -674,7 +659,7 @@ func (rf *Raft) allAppendEntries() {
 			} else {
 				//snapshot
 				fmt.Println(rf.me, "send snapshot to ", i, "firstindex is ", FirstIndex)
-				args := &InstallSnapshotArgs{rf.currentTerm, rf.me, rf.log[0].Index, rf.log[0].Term, rf.persister.ReadSnapshot(), rf.timestamp}
+				args := &InstallSnapshotArgs{rf.currentTerm, rf.me, rf.log[0].Index, rf.log[0].Term, rf.persister.ReadSnapshot(), rf.log, rf.timestamp}
 				go func(args *InstallSnapshotArgs, i int) {
 					reply := &InstallSnapshotReply{}
 
@@ -691,15 +676,15 @@ func (rf *Raft) allAppendEntries() {
 							rf.state = Follower
 							rf.votedFor = -1
 							rf.currentTerm = reply.Term
-							rf.ClearChange()
 							rf.persist()
+							rf.ClearChange()
 							return
 						}
 						if reply.ErrTimeout == true {
 							//rf.persist()
 							return
 						}
-						rf.nextIndex[i] = args.LastIncludeIndex + 1
+						rf.nextIndex[i] = args.Entries[len(args.Entries) - 1].Index + 1
 						rf.matchIndex[i] = rf.nextIndex[i] - 1
 					}
 				}(args, i)
