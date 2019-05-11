@@ -308,7 +308,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	if args.Term > rf.currentTerm {
 		rf.currentTerm = args.Term
 		rf.votedFor = -1
-		rf.persist()
 		rf.ClearChange()
 		rf.state = Follower
 	}
@@ -323,6 +322,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			//this rpc is timeout, not in order
 			fmt.Println(rf.me, "this append entries rpc is timeout")
 			reply.ErrTimeout = true
+			rf.persist()
 			return
 		}
 		rf.timestamp = args.TimeStamp
@@ -330,6 +330,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		NowIndex := args.PrevLogIndex - FirstIndex
 		if NowIndex < 0 {
 			reply.PrevIndex = FirstIndex
+			rf.persist()
 			return
 		}
 
@@ -363,7 +364,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			if rf.commitIndex < min(args.LeaderCommit, rf.log[rf.GetLen()].Index) { //rules for followers to increase commitIndex
 				rf.commitIndex = min(args.LeaderCommit, rf.log[rf.GetLen()].Index)
 				rf.persist()
-				rf.chanCommit <- 1
+				rf.chanCommit <- rf.commitIndex
 				//fmt.Println("commitIndex: ", rf.me, rf.commitIndex)
 			}else{
 				rf.persist()
@@ -383,7 +384,6 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	if rf.currentTerm < args.Term {
 		rf.currentTerm = args.Term
 		rf.votedFor = -1
-		rf.persist()
 		rf.ClearChange()
 		rf.state = Follower
 	}
@@ -396,6 +396,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		//this rpc is timeout, not in order
 		fmt.Println(rf.me, "this install snapshot rpc is timeout")
 		reply.ErrTimeout = true
+		rf.persist()
 		rf.mu.Unlock()
 		return
 	}
@@ -414,10 +415,10 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.persist()
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), args.Snapshot)
 	msg := ApplyMsg{CommandValid: false, Snapshot: args.Snapshot}
-	fmt.Println(rf.me, "install snapshot, commit index ", rf.commitIndex, "apply index ", rf.lastApplied, "now log is: ", rf.log[: min(5, rf.GetLen())])
-	rf.mu.Unlock()
 	rf.chanCanApply <- 1
+	rf.mu.Unlock()
 	rf.chanApplyMsg <- msg
+	fmt.Println(rf.me, "install snapshot, commit index ", rf.commitIndex, "apply index ", rf.lastApplied, "now log index is: ", args.Entries[len(args.Entries) - 1].Index)
 	<- rf.chanCanApply
 }
 
@@ -482,10 +483,10 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		index = rf.log[rf.GetLen()].Index + 1
 		//fmt.Println("a log entry size is: ", unsafe.Sizeof(entries{command, term, index}))
 		rf.log = append(rf.log, entries{command, term, index})
-		rf.persist()
 		if len(rf.chanNewLog) == 0 {
 			rf.chanNewLog <- 1
 		}
+		rf.persist()
 		//newlog = true
 	}
 	//if newlog {
@@ -530,8 +531,8 @@ func (rf *Raft) allRequestVote() {
 						rf.state = Follower
 						rf.votedFor = -1
 						rf.currentTerm = reply.Term
-						rf.persist()
 						rf.ClearChange()
+						rf.persist()
 						return
 					}
 					if reply.VoteGranted == true {
@@ -574,7 +575,7 @@ func (rf *Raft) updateCommit() {
 		rf.commitIndex = min(N, rf.log[rf.GetLen()].Index)
 		rf.persist()
 		fmt.Println("leader is: ", rf.me, "now commit index is: ", rf.commitIndex)
-		rf.chanCommit <- 1
+		rf.chanCommit <- rf.commitIndex
 	}
 }
 //
@@ -626,8 +627,8 @@ func (rf *Raft) allAppendEntries() {
 							rf.state = Follower
 							rf.votedFor = -1
 							rf.currentTerm = reply.Term
-							rf.persist()
 							rf.ClearChange()
+							rf.persist()
 							return
 						}
 						if reply.ErrTimeout == true {
@@ -676,8 +677,8 @@ func (rf *Raft) allAppendEntries() {
 							rf.state = Follower
 							rf.votedFor = -1
 							rf.currentTerm = reply.Term
-							rf.persist()
 							rf.ClearChange()
+							rf.persist()
 							return
 						}
 						if reply.ErrTimeout == true {
@@ -811,12 +812,12 @@ func (rf *Raft) doStateChange() {
 func (rf *Raft) doApply() {
 	for {
 		select {
-		case <-rf.chanCommit:
+		case commitid := <-rf.chanCommit:
 			//fmt.Println("raft apply: ", rf.me, rf.lastApplied)
 			//for rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index{
 			for {
 				rf.mu.Lock()
-				if !(rf.lastApplied < rf.commitIndex && rf.lastApplied < rf.log[rf.GetLen()].Index) {
+				if !(rf.lastApplied < commitid && rf.lastApplied < rf.log[rf.GetLen()].Index) {
 					rf.mu.Unlock()
 					break
 				}
@@ -824,7 +825,7 @@ func (rf *Raft) doApply() {
 				if rf.lastApplied+1 >= FirstIndex {
 					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
 					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
-					fmt.Println(rf.me, " want apply index is: ", rf.lastApplied+1, "commit index is: ", rf.commitIndex, "msg is: ", msg)
+					fmt.Println(rf.me, " want apply index is: ", rf.lastApplied+1, "now commit index is: ", commitid, "msg is: ", msg)
 					rf.lastApplied++
 					rf.mu.Unlock()
 					//can't lock when send in channel, dead lock
