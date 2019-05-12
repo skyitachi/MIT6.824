@@ -90,7 +90,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	select {
 	case c := <-ch:
 		if kv.CheckSame(c, oop) {
-			fmt.Println("reply to client:", index)
+			fmt.Println(kv.me, "reply to client:", index)
 			val := ""
 			if c.Opname == "Get" {
 				//kv.mu.Lock()
@@ -169,14 +169,14 @@ func (kv *KVServer) Apply(oop Op) {
 		switch oop.Opname {
 		case "Put":
 			kv.kvdatabase[oop.Key] = oop.Value
-			fmt.Println(kv.me, "after put", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0):])
+			fmt.Println(kv.me, "after put", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 20, 0):])
 		case "Append":
 			if _, ok := kv.kvdatabase[oop.Key]; ok {
 				kv.kvdatabase[oop.Key] += oop.Value
 			} else {
 				kv.kvdatabase[oop.Key] = oop.Value
 			}
-			fmt.Println(kv.me, "after append", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0):])
+			fmt.Println(kv.me, "after append", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 20, 0):])
 		}
 		kv.detectDup[oop.ClientId] = oop.Seq
 	}
@@ -203,18 +203,18 @@ func (kv *KVServer) doApplyOp() {
 		if msg.CommandValid {
 			index := msg.CommandIndex
 			if oop, ok := msg.Command.(Op); ok {
-				fmt.Println(kv.me, " will apply log: ", index, oop)
 				kv.mu.Lock()
 				kv.Apply(oop)
 				kv.Reply(oop, index)
-				fmt.Println(kv.me, " apply log finish: ", index, oop)
 				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate && index == kv.rf.GetCommitIndex() {
 					kv.SaveSnapshot(index)
 				}
 				kv.mu.Unlock()
+				fmt.Println(kv.me, "finish apply log ", index)
 			}
 		} else {
 			kv.LoadSnapshot(msg.Snapshot)
+			fmt.Println(kv.me, "finish loadsnapshot")
 		}
 	}
 }
@@ -243,7 +243,6 @@ func (kv *KVServer) LoadSnapshot(snapshot []byte) {
 		kv.kvdatabase = kvdb
 		kv.detectDup = dup
 		kv.mu.Unlock()
-		fmt.Println(kv.me, " loadsnaphost")
 	}
 }
 

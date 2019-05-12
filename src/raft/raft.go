@@ -149,6 +149,7 @@ func (rf *Raft) persist() {
 	e.Encode(rf.timestamp)
 	data := w.Bytes()
 	rf.persister.SaveRaftState(data)
+	fmt.Println(rf.me, "persist, commit id is", rf.commitIndex, "first log index", rf.log[0].Index, "term is", rf.log[0].Term)
 }
 
 //
@@ -189,6 +190,7 @@ func (rf *Raft) readPersist(data []byte) {
 		rf.log = llog
 		rf.timestamp = tm
 		rf.mu.Unlock()
+		fmt.Println(rf.me, "read persist, term is", curt, "commitid ",commitid, "first log id is: ", llog[0].Index, "log term is", llog[0].Term)
 	}
 }
 
@@ -369,7 +371,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			}else{
 				rf.persist()
 			}
-			fmt.Println(rf.me, "append entries, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied, "now last 10 log is: ", rf.log[max(0, rf.GetLen() - 10):])
+			fmt.Println(rf.me, "append has persist, commit id ", rf.commitIndex, "apply id", rf.lastApplied)
 		}
 	}
 }
@@ -418,7 +420,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.chanCanApply <- 1
 	rf.mu.Unlock()
 	rf.chanApplyMsg <- msg
-	fmt.Println(rf.me, "install snapshot, commit index ", rf.commitIndex, "apply index ", rf.lastApplied, "now log index is: ", args.Entries[len(args.Entries) - 1].Index)
+	fmt.Println(rf.me, "install snapshot finish", "snapshot commitid ", args.LastIncludeIndex, "last log id: ", args.Entries[len(args.Entries) - 1].Index, "term is", args.Entries[len(args.Entries) - 1].Term)
 	<- rf.chanCanApply
 }
 
@@ -659,7 +661,7 @@ func (rf *Raft) allAppendEntries() {
 				}(args, i)
 			} else {
 				//snapshot
-				fmt.Println(rf.me, "send snapshot to ", i, "firstindex is ", FirstIndex)
+				fmt.Println(rf.me, "send snapshot to ", i, "firstindex is ", FirstIndex, "term is", rf.log[0].Term)
 				args := &InstallSnapshotArgs{rf.currentTerm, rf.me, rf.log[0].Index, rf.log[0].Term, rf.persister.ReadSnapshot(), rf.log, rf.timestamp}
 				go func(args *InstallSnapshotArgs, i int) {
 					reply := &InstallSnapshotReply{}
@@ -701,7 +703,7 @@ func (rf *Raft) SaveSnapshot(index int, kvdatabase map[string]string, detectDup 
 	if index < FirstIndex {
 		return
 	}
-	fmt.Println(rf.me, "start save snapshot, index is: ", index, "commit id ", rf.commitIndex, "apply id ", rf.lastApplied)
+	fmt.Println(rf.me, "start save snapshot ", index, "commit ", rf.commitIndex, "apply ", rf.lastApplied)
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
 	e.Encode(kvdatabase)
@@ -710,7 +712,7 @@ func (rf *Raft) SaveSnapshot(index int, kvdatabase map[string]string, detectDup 
 	rf.log = rf.log[index-FirstIndex:]
 	rf.persist()
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), data)
-	fmt.Println(rf.me, "save snapshot successful, now log is: ", rf.log[: min(rf.GetLen(), 5)])
+	fmt.Println(rf.me, "save snapshot successful ", "firstindex is", index, "term is ", rf.log[0].Term)
 }
 
 func (rf *Raft) GetStateSize() int {
@@ -825,12 +827,13 @@ func (rf *Raft) doApply() {
 				if rf.lastApplied+1 >= FirstIndex {
 					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
 					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
-					fmt.Println(rf.me, " want apply index is: ", rf.lastApplied+1, "now commit index is: ", commitid, "msg is: ", msg)
+					fmt.Println(rf.me, " apply : ", rf.lastApplied+1, " commit id: ", commitid, "msg is: ", msg)
 					rf.lastApplied++
 					rf.mu.Unlock()
 					//can't lock when send in channel, dead lock
 					rf.chanCanApply <- 1
 					rf.chanApplyMsg <- msg
+					fmt.Println(rf.me, " finish apply: ", msg.CommandIndex, "msg is: ", msg)
 					<- rf.chanCanApply
 					rf.mu.Lock()
 				}
