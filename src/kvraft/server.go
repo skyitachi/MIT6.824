@@ -78,7 +78,7 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 		return ErrWrongLeader, ""
 	}
 	fmt.Println("index",index, "log op:", oop.Opname, "key: ", oop.Key, "value: ", oop.Value, "cid: ", oop.ClientId, "seq: ", oop.Seq)
-	ch := make(chan Op)
+	ch := make(chan Op, 1)
 	kv.chanresult[index] = ch
 	kv.mu.Unlock()
 	defer func() {
@@ -90,12 +90,10 @@ func (kv *KVServer) StartCommand(oop Op) (Err, string) {
 	select {
 	case c := <-ch:
 		if kv.CheckSame(c, oop) {
-			fmt.Println(kv.me, "reply to client:", index)
+			fmt.Println("reply to client:", index)
 			val := ""
-			if c.Opname == "Get" {
-				//kv.mu.Lock()
+			if oop.Opname == "Get" {
 				val = c.Value
-				//kv.mu.Unlock()
 			}
 			return OK, val
 		} else {
@@ -148,13 +146,6 @@ func (kv *KVServer) Kill() {
 	// Your code here, if desired.
 }
 
-func max(a int, b int) int {
-	if a > b{
-		return a
-	}
-	return b
-}
-
 func (kv *KVServer) DupCheck(cliid int64, seqid int) bool {
 	res, ok := kv.detectDup[cliid]
 	if ok {
@@ -163,38 +154,11 @@ func (kv *KVServer) DupCheck(cliid int64, seqid int) bool {
 	return true
 }
 
-func (kv *KVServer) Apply(oop Op) {
-	//kv.mu.Lock()
-	if kv.DupCheck(oop.ClientId, oop.Seq) {
-		switch oop.Opname {
-		case "Put":
-			kv.kvdatabase[oop.Key] = oop.Value
-			fmt.Println(kv.me, "after put", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 20, 0):])
-		case "Append":
-			if _, ok := kv.kvdatabase[oop.Key]; ok {
-				kv.kvdatabase[oop.Key] += oop.Value
-			} else {
-				kv.kvdatabase[oop.Key] = oop.Value
-			}
-			fmt.Println(kv.me, "after append", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 20, 0):])
-		}
-		kv.detectDup[oop.ClientId] = oop.Seq
+func max(a int, b int) int {
+	if a > b {
+		return a
 	}
-	//kv.mu.Unlock()
-}
-
-func (kv *KVServer) Reply(oop Op, index int) {
-	//kv.mu.Lock()
-	ch, ok := kv.chanresult[index]
-	//kv.mu.Unlock()
-	res := Op{oop.Opname, oop.Key, kv.kvdatabase[oop.Key], oop.ClientId, oop.Seq}
-	if ok {
-		select {
-		case <-ch:
-		default:
-		}
-		ch <- res
-	}
+	return b
 }
 
 func (kv *KVServer) doApplyOp() {
@@ -203,25 +167,49 @@ func (kv *KVServer) doApplyOp() {
 		if msg.CommandValid {
 			index := msg.CommandIndex
 			if oop, ok := msg.Command.(Op); ok {
+
 				kv.mu.Lock()
-				kv.Apply(oop)
-				kv.Reply(oop, index)
+				//apply
+				if kv.DupCheck(oop.ClientId, oop.Seq) {
+					switch oop.Opname {
+					case "Put":
+						kv.kvdatabase[oop.Key] = oop.Value
+						fmt.Println(kv.me, "after put", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0): ])
+					case "Append":
+						if _, ok := kv.kvdatabase[oop.Key]; ok {
+							kv.kvdatabase[oop.Key] += oop.Value
+							fmt.Println(kv.me, "after append", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0): ])
+						} else {
+							kv.kvdatabase[oop.Key] = oop.Value
+							fmt.Println(kv.me, "after append", kv.kvdatabase[oop.Key][max(len(kv.kvdatabase[oop.Key]) - 30, 0): ])
+						}
+					}
+					kv.detectDup[oop.ClientId] = oop.Seq
+				}
+				//reply
+				ch, ok := kv.chanresult[index]
+				res := Op{oop.Opname, oop.Key, kv.kvdatabase[oop.Key], oop.ClientId, oop.Seq}
+				if ok {
+					select {
+					case <-ch:
+					default:
+					}
+					ch <- res
+				}
+				
 				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate && index == kv.rf.GetCommitIndex() {
 					kv.SaveSnapshot(index)
 				}
 				kv.mu.Unlock()
-				fmt.Println(kv.me, "finish apply log ", index)
+				fmt.Println(kv.me, "apply finish", index)
 			}
 		} else {
 			kv.LoadSnapshot(msg.Snapshot)
-			fmt.Println(kv.me, "finish loadsnapshot")
 		}
 	}
 }
 
 func (kv *KVServer) SaveSnapshot(index int) {
-	//kv.mu.Lock()
-	//defer kv.mu.Unlock()
 	kv.rf.SaveSnapshot(index, kv.kvdatabase, kv.detectDup)
 }
 
@@ -243,6 +231,7 @@ func (kv *KVServer) LoadSnapshot(snapshot []byte) {
 		kv.kvdatabase = kvdb
 		kv.detectDup = dup
 		kv.mu.Unlock()
+		fmt.Println(kv.me, "loadsnapshot")
 	}
 }
 
@@ -277,7 +266,6 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.LoadSnapshot(persister.ReadSnapshot())
 	kv.applyCh = make(chan raft.ApplyMsg)
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
-	kv.rf.SetMaxRaftState(maxraftstate)
 
 	// You may need initialization code here.
 
