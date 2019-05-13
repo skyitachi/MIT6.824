@@ -147,6 +147,7 @@ func (rf *Raft) persist() {
 	e.Encode(rf.timestamp)
 	data := w.Bytes()
 	rf.persister.SaveRaftState(data)
+	fmt.Println(rf.me, "has persist, commitid is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen].Term)
 }
 
 //
@@ -361,7 +362,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			} else {
 				// rf.persist()
 			}
-			fmt.Println(rf.me, "append entries, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
+			fmt.Println(rf.me, "append entries, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 		}
 	} else {
 		if persistFlag == 1 {
@@ -431,7 +432,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.mu.Unlock()
 	// rf.chanCanApply <- 1
 	rf.chanApplyMsg <- msg
-	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
+	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 	<- rf.chanCanApply
 }
 
@@ -500,6 +501,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 			rf.chanNewLog <- 1
 		}
 		rf.persist()
+		fmt.Println(rf.me, "is leader, start append log finish, commit id is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 		//newlog = true
 	}
 	//if newlog {
@@ -721,7 +723,7 @@ func (rf *Raft) SaveSnapshot(index int, kvdatabase map[string]string, detectDup 
 	rf.log = rf.log[index-FirstIndex:]
 	rf.persist()
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), data)
-	fmt.Println(rf.me, "save snapshot finish, firstindex is ", index, "term is ", rf.log[0].Term)
+	fmt.Println(rf.me, "save snapshot finish, firstindex is ", index, "term is ", rf.log[0].Term, "commitid is", rf.commitIndex, "apply id is: ",rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 }
 
 func (rf *Raft) GetStateSize() int {
@@ -798,6 +800,7 @@ func (rf *Raft) doStateChange() {
 				rf.mu.Unlock()
 			}
 		case Leader:
+			fmt.Println("now leader is ", rf.me, "term is ", rf.currentTerm)
 			go rf.allAppendEntries()
 			time.Sleep(time.Duration(10) * time.Millisecond)
 			select {
@@ -836,12 +839,13 @@ func (rf *Raft) doApply() {
 				if rf.lastApplied+1 >= FirstIndex {
 					index := min(rf.lastApplied + 1 - FirstIndex, rf.GetLen())
 					msg := ApplyMsg{CommandValid: true, Command: rf.log[index].Command, CommandIndex: rf.lastApplied + 1}
-					fmt.Println(rf.me, " want to apply index is: ", rf.lastApplied+1, "raft commit index is: ", rf.commitIndex, "msg is: ", msg)
+					fmt.Println(rf.me, " want apply index is: ", rf.lastApplied+1, "commit id is: ", rf.commitIndex, "msg is: ", msg)
 					rf.lastApplied++
 					rf.mu.Unlock()
 					//can't lock when send in channel, dead lock
 					rf.chanCanApply <- 1
 					rf.chanApplyMsg <- msg
+					fmt.Println(rf.me, "apply finish, commit id is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 					<- rf.chanCanApply
 					rf.mu.Lock()
 				}
@@ -881,6 +885,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
 	rf.lastApplied = rf.log[0].Index
+	fmt.Println(rf.me, "restart, commitindex is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 
 	go rf.doStateChange()
 	//go rf.doCommit()

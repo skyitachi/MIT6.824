@@ -187,6 +187,9 @@ func (kv *KVServer) doApplyOp() {
 					kv.detectDup[oop.ClientId] = oop.Seq
 				}
 				res := Op{oop.Opname, oop.Key, kv.kvdatabase[oop.Key], oop.ClientId, oop.Seq}
+				if oop.Opname == "Get" {
+					fmt.Println(kv.me, "apply get, index is", index, "value is", kv.kvdatabase[oop.Key][max(0, len(kv.kvdatabase[oop.Key]) - 30) :], "msg is", msg)
+				}
 				//reply
 				ch, ok := kv.chanresult[index]
 				if ok {
@@ -201,8 +204,6 @@ func (kv *KVServer) doApplyOp() {
 					kv.SaveSnapshot(index)
 				}
 				kv.mu.Unlock()
-
-				fmt.Println(kv.me, "apply finish", index)
 			}
 		} else {
 			kv.LoadSnapshot(msg.Snapshot)
