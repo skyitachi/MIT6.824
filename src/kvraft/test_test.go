@@ -397,6 +397,8 @@ func GenericTestLinearizability(t *testing.T, part string, nclients int, nserver
 			cfg.ConnectAll()
 		}
 
+		time.Sleep(electionTimeout)
+
 		// wait for clients.
 		for i := 0; i < nclients; i++ {
 			<-clnts[i]
