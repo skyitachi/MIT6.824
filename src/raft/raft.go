@@ -432,7 +432,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.mu.Unlock()
 	// rf.chanCanApply <- 1
 	rf.chanApplyMsg <- msg
-	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
+	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied, "last log index/term: ", args.Entries[len(args.Entries) - 1].Index,args.Entries[len(args.Entries) - 1].Term)
 	<- rf.chanCanApply
 }
 
