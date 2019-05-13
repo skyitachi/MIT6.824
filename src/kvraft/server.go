@@ -187,9 +187,7 @@ func (kv *KVServer) doApplyOp() {
 					kv.detectDup[oop.ClientId] = oop.Seq
 				}
 				res := Op{oop.Opname, oop.Key, kv.kvdatabase[oop.Key], oop.ClientId, oop.Seq}
-				kv.mu.Unlock()
 				//reply
-				kv.mu.Lock()
 				ch, ok := kv.chanresult[index]
 				if ok {
 					select {
@@ -198,13 +196,11 @@ func (kv *KVServer) doApplyOp() {
 					}
 					ch <- res
 				}
-				kv.mu.Unlock()
 				
 				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate && index == kv.rf.GetCommitIndex() {
-					kv.mu.Lock()
 					kv.SaveSnapshot(index)
-					kv.mu.Unlock()
 				}
+				kv.mu.Unlock()
 
 				fmt.Println(kv.me, "apply finish", index)
 			}

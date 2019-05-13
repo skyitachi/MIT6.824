@@ -424,8 +424,8 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), args.Snapshot)
 	msg := ApplyMsg{CommandValid: false, Snapshot: args.Snapshot}
 
-	rf.chanCanApply <- 1
 	rf.mu.Unlock()
+	rf.chanCanApply <- 1
 	rf.chanApplyMsg <- msg
 	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
 	<- rf.chanCanApply
