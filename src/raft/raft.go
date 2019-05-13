@@ -445,8 +445,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.log = args.Entries
 	rf.lastApplied = args.LastIncludeIndex
 	rf.commitIndex = args.LeaderCommit
-	rf.persist()
-	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), args.Snapshot)
+	rf.persister.SaveStateAndSnapshot(rf.GetPersistByte(), args.Snapshot)
 	msg := ApplyMsg{CommandValid: false, Snapshot: args.Snapshot}
 
 	rf.mu.Unlock()
