@@ -39,6 +39,11 @@ type Result struct {
 	Value  string
 }
 
+const (
+	Alive = iota
+	Killed
+)
+
 type KVServer struct {
 	mu      sync.Mutex
 	me      int
@@ -51,6 +56,8 @@ type KVServer struct {
 	kvdatabase map[string]string
 	detectDup  map[int64]int
 	chanresult map[int]chan Op
+
+	state      int
 }
 
 func (kv *KVServer) CheckSame(c1 Op, c2 Op) bool {
@@ -144,6 +151,9 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 func (kv *KVServer) Kill() {
 	kv.rf.Kill()
 	// Your code here, if desired.
+	kv.mu.Lock()
+	kv.state = Killed
+	kv.mu.Unlock()
 }
 
 func (kv *KVServer) DupCheck(cliid int64, seqid int) bool {
@@ -163,6 +173,14 @@ func max(a int, b int) int {
 
 func (kv *KVServer) doApplyOp() {
 	for {
+		//kill()
+		kv.mu.Lock()
+		st := kv.state
+		kv.mu.Unlock()
+		if st == Killed {
+			return
+		}
+
 		msg := <-kv.applyCh
 		if msg.CommandValid {
 			index := msg.CommandIndex
@@ -257,6 +275,7 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	labgob.Register(Op{})
 
 	kv := new(KVServer)
+	kv.state = Alive
 	kv.me = me
 	kv.maxraftstate = maxraftstate
 

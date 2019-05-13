@@ -31,6 +31,7 @@ const (
 	Follower = iota
 	Candidate
 	Leader
+	Killed
 )
 
 //
@@ -521,6 +522,9 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 func (rf *Raft) Kill() {
 	// Your code here, if desired.
 	//fmt.Println(rf.me, " send rpc: ", rf.rpcnum)
+	rf.mu.Lock()
+	rf.state = Killed
+	rf.mu.Unlock()
 }
 
 func (rf *Raft) allRequestVote() {
@@ -807,6 +811,9 @@ func (rf *Raft) doStateChange() {
 			case <- rf.chanNewLog:
 			case <-time.After(time.Duration(50) * time.Millisecond):
 			}
+		case Killed:
+			//kill()
+			return
 		}
 	}
 }
@@ -825,6 +832,14 @@ func (rf *Raft) doStateChange() {
 
 func (rf *Raft) doApply() {
 	for {
+		//kill
+		rf.mu.Lock()
+		st := rf.state
+		rf.mu.Unlock()
+		if st == Killed {
+			return
+		}
+
 		select {
 		case <-rf.chanCommit:
 			//fmt.Println("raft apply: ", rf.me, rf.lastApplied)
