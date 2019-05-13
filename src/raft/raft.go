@@ -845,9 +845,9 @@ func (rf *Raft) doApply() {
 					//can't lock when send in channel, dead lock
 					rf.chanCanApply <- 1
 					rf.chanApplyMsg <- msg
-					fmt.Println(rf.me, "apply finish, commit id is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 					<- rf.chanCanApply
 					rf.mu.Lock()
+					fmt.Println(rf.me, "apply finish, commit id is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 				}
 				//rf.lastApplied = min(rf.lastApplied + 1, rf.commitIndex)
 				rf.mu.Unlock()
