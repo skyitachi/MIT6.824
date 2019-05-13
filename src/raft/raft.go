@@ -147,7 +147,7 @@ func (rf *Raft) persist() {
 	e.Encode(rf.timestamp)
 	data := w.Bytes()
 	rf.persister.SaveRaftState(data)
-	fmt.Println(rf.me, "has persist, commitid is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen].Term)
+	fmt.Println(rf.me, "has persist, commitid is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 }
 
 //
