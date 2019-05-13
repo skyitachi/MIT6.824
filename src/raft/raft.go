@@ -151,6 +151,26 @@ func (rf *Raft) persist() {
 	fmt.Println(rf.me, "has persist, commitid is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 }
 
+func (rf *Raft) GetPersistByte() []byte {
+	// Your code here (2C).
+	// Example:
+	// w := new(bytes.Buffer)
+	// e := labgob.NewEncoder(w)
+	// e.Encode(rf.xxx)
+	// e.Encode(rf.yyy)
+	// data := w.Bytes()
+	// rf.persister.SaveRaftState(data)
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	e.Encode(rf.currentTerm)
+	e.Encode(rf.votedFor)
+	e.Encode(rf.commitIndex)
+	e.Encode(rf.log) //only three presistent state on all server
+	e.Encode(rf.timestamp)
+	data := w.Bytes()
+	return data
+}
+
 //
 // restore previously persisted state.
 //
@@ -282,7 +302,6 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		rf.ClearChange()
 		rf.state = Follower
 		rf.votedFor = -1
-
 	}
 	reply.Term = rf.currentTerm
 	reply.VoteGranted = false
@@ -725,8 +744,7 @@ func (rf *Raft) SaveSnapshot(index int, kvdatabase map[string]string, detectDup 
 	e.Encode(detectDup)
 	data := w.Bytes()
 	rf.log = rf.log[index-FirstIndex:]
-	rf.persist()
-	rf.persister.SaveStateAndSnapshot(rf.persister.ReadRaftState(), data)
+	rf.persister.SaveStateAndSnapshot(rf.GetPersistByte(), data)
 	fmt.Println(rf.me, "save snapshot finish, firstindex is ", index, "term is ", rf.log[0].Term, "commitid is", rf.commitIndex, "apply id is: ",rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 }
 
@@ -896,11 +914,11 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.chanCanApply = make(chan int, 1)
 	//rf.chanCopy = make(chan int, 10000)
 	//rf.rpcnum = 0
-
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
 	rf.lastApplied = rf.log[0].Index
 	fmt.Println(rf.me, "restart, commitindex is", rf.commitIndex, "apply id is", rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
+	rf.chanCommit <- 1
 
 	go rf.doStateChange()
 	//go rf.doCommit()

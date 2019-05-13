@@ -10,6 +10,7 @@ import "log"
 import "strings"
 import "sync"
 import "sync/atomic"
+import "fmt"
 
 // The tester generously allows solutions to complete elections in one second
 // (much more than the paper's range of timeouts).
@@ -246,12 +247,14 @@ func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash
 			}
 			// Wait for a while for servers to shutdown, since
 			// shutdown isn't a real crash and isn't instantaneous
+			fmt.Println("have shutdown all servers-----------------------------------------------")
 			time.Sleep(electionTimeout)
 			// log.Printf("restart servers\n")
 			// crash and re-start all
 			for i := 0; i < nservers; i++ {
 				cfg.StartServer(i)
 			}
+			fmt.Println("have restart all servers-----------------------------------------------")
 			cfg.ConnectAll()
 		}
 
