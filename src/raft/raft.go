@@ -371,11 +371,13 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 }
 
 func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapshotReply) {
+	rf.chanCanApply <- 1
 	rf.mu.Lock()
 	persistFlag := 0
 	if args.Term < rf.currentTerm {
 		reply.Term = rf.currentTerm
 		rf.mu.Unlock()
+		<- rf.chanCanApply
 		return
 	}
 	if rf.currentTerm < args.Term {
@@ -398,6 +400,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 			rf.persist()
 		}
 		rf.mu.Unlock()
+		<- rf.chanCanApply
 		return
 	}
 	rf.timestamp = args.TimeStamp
@@ -409,6 +412,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 			rf.persist()
 		}
 		rf.mu.Unlock()
+		<- rf.chanCanApply
 		return
 	}
 	// if rf.GetLen() >= NowIndex && rf.log[NowIndex].Term == args.LastIncludeTerm {
@@ -425,7 +429,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	msg := ApplyMsg{CommandValid: false, Snapshot: args.Snapshot}
 
 	rf.mu.Unlock()
-	rf.chanCanApply <- 1
+	// rf.chanCanApply <- 1
 	rf.chanApplyMsg <- msg
 	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied)
 	<- rf.chanCanApply
