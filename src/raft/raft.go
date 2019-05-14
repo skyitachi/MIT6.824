@@ -264,6 +264,7 @@ type InstallSnapshotArgs struct {
 }
 
 type InstallSnapshotReply struct {
+	Success     bool
 	Term int
 	ErrTimeout	bool
 }
@@ -395,6 +396,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.chanCanApply <- 1
 	rf.mu.Lock()
 	persistFlag := 0
+	reply.Success = false
 	if args.Term < rf.currentTerm {
 		reply.Term = rf.currentTerm
 		rf.mu.Unlock()
@@ -453,6 +455,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.chanApplyMsg <- msg
 	fmt.Println(rf.me, "install snapshot, last commit index ", rf.commitIndex, "last apply index ", rf.lastApplied, "last log index/term: ", args.Entries[len(args.Entries) - 1].Index,args.Entries[len(args.Entries) - 1].Term)
 	<- rf.chanCanApply
+	reply.Success = true
 }
 
 //
@@ -717,10 +720,12 @@ func (rf *Raft) allAppendEntries() {
 							//rf.persist()
 							return
 						}
-						rf.nextIndex[i] = args.Entries[len(args.Entries)-1].Index + 1
-						rf.matchIndex[i] = rf.nextIndex[i] - 1
-						if rf.matchIndex[i] > rf.commitIndex {
-							rf.updateCommit()
+						if reply.Success == true {
+							rf.nextIndex[i] = args.Entries[len(args.Entries)-1].Index + 1
+							rf.matchIndex[i] = rf.nextIndex[i] - 1
+							if rf.matchIndex[i] > rf.commitIndex {
+								rf.updateCommit()
+							}
 						}
 					}
 				}(args, i)
