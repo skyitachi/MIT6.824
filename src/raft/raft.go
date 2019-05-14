@@ -265,7 +265,8 @@ type InstallSnapshotArgs struct {
 
 type InstallSnapshotReply struct {
 	Success     bool
-	Term int
+	PrevIndex   int
+	Term 		int
 	ErrTimeout	bool
 }
 
@@ -434,6 +435,7 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		if persistFlag == 1 {
 			rf.persist()
 		}
+		reply.PrevIndex = FirstIndex
 		rf.mu.Unlock()
 		<- rf.chanCanApply
 		return
@@ -726,6 +728,8 @@ func (rf *Raft) allAppendEntries() {
 							if rf.matchIndex[i] > rf.commitIndex {
 								rf.updateCommit()
 							}
+						} else {
+							rf.nextIndex[i] = reply.PrevIndex + 1
 						}
 					}
 				}(args, i)
