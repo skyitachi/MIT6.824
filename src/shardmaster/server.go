@@ -11,10 +11,15 @@ import "fmt"
 
 type Result struct {
 	Opname string
-	Id     int64
-	Seq int
+	ClientId     int64
+	Seq    int
 	config Config
 }
+
+const (
+	Alive = iota
+	Killed
+)
 
 type ShardMaster struct {
 	mu      sync.Mutex
@@ -25,8 +30,10 @@ type ShardMaster struct {
 	// Your data here.
 
 	configs []Config // indexed by config num
-	DetectDup map[int64]Result
-	result map[int]chan Op
+	detectDup map[int64]Result
+	chanresult map[int]chan Op
+
+	state    int
 }
 
 
@@ -40,12 +47,42 @@ type Op struct {
 	GID int
 	Num int
 
-	Id      int64
+	ClientId int64
 	Seq     int
 }
 
+func (sm *ShardMaster) CopyConfig(c1 *Config, c2 *Config) {
+	c1.Num = c2.Num
+	for i := 0; i < NShards; i++ {
+		c1.Shards[i] = c2.Shards[i]
+	}
+	if c2.Groups == nil {
+		return
+	}
+	for k, v := range c2.Groups {
+		if v == nil {
+			continue
+		}
+		vv := make([]string, len(v))
+		for i := 0; i < len(v); i++ {
+			vv[i] = v[i]
+		}
+		c1.Groups[k] = vv
+	}
+}
+
+func (sm *ShardMaster) MakeEmptyConfig() Config {
+	res := Config{}
+	res.Num = 0
+	for i := 0; i < NShards; i++ {
+		res.Shards[i] = 0
+	}
+	res.Groups = make(map[int][]string)
+	return res
+}
+
 func (sm *ShardMaster) DupCheck(id int64, seq int) bool {
-	res, ok := sm.DetectDup[id]
+	res, ok := sm.detectDup[id]
 	if ok{
 		return seq > res.Seq
 	}
@@ -53,7 +90,7 @@ func (sm *ShardMaster) DupCheck(id int64, seq int) bool {
 }
 
 func (sm *ShardMaster) CheckSame(c1 Op, c2 Op) bool {
-	if c1.Id == c2.Id && c1.Seq == c2.Seq{
+	if c1.ClientId == c2.ClientId && c1.Seq == c2.Seq {
 		return true
 	}
 	return false
@@ -61,55 +98,58 @@ func (sm *ShardMaster) CheckSame(c1 Op, c2 Op) bool {
 
 func (sm *ShardMaster) StartCommand(op Op) (Err, Config){
 	sm.mu.Lock()
-	if !sm.DupCheck(op.Id, op.Seq){
-		res, _ := sm.DetectDup[op.Id]
+	if !sm.DupCheck(op.ClientId, op.Seq){
+		res, _ := sm.detectDup[op.ClientId]
+		resCig := sm.MakeEmptyConfig()
+		sm.CopyConfig(&resCig, &res.config)
 		sm.mu.Unlock()
-		return OK, res.config
+		return OK, resCig
 	}
 
 	index, _, isLeader := sm.rf.Start(op)
 	if !isLeader{
 		sm.mu.Unlock()
-		return ErrWrongLeader, Config{}
+		return ErrWrongLeader, sm.MakeEmptyConfig()
 	}
 	//fmt.Println("index",index, sm.me, op)
-	ch := make(chan Op)
-	sm.result[index] = ch
+	ch := make(chan Op, 1)
+	sm.chanresult[index] = ch
 	sm.mu.Unlock()
 	defer func(){
 		sm.mu.Lock()
-		delete(sm.result, index)
+		delete(sm.chanresult, index)
 		sm.mu.Unlock()
 	}()
 
 	select{
 	case c := <-ch:
 		if sm.CheckSame(c, op) {
-			sm.mu.Lock()
-			res := sm.DetectDup[op.Id]
-			sm.mu.Unlock()
-			return OK, res.config
+			res := sm.detectDup[op.ClientId]
+			resCig := sm.MakeEmptyConfig()
+			sm.CopyConfig(&resCig, &res.config)
+			return OK, resCig
 		} else{
-			return ErrWrongLeader, Config{}
+			return ErrWrongLeader, sm.MakeEmptyConfig()
 		}
 		//fmt.Println("success ", op.Id, op.Seq)
 	case <- time.After(time.Millisecond * 2000):
 		fmt.Println("timeout")
-		return ErrTimeout, Config{}
+		return ErrWrongLeader, sm.MakeEmptyConfig()
 	}
 }
 
 func (sm *ShardMaster) Join(args *JoinArgs, reply *JoinReply) {
 	// Your code here.
-	op := Op{Opname:"Join",Servers:args.Servers, Id:args.Id, Seq:args.Seq}
+	op := Op{Opname:"Join",Servers:args.Servers, ClientId:args.ClientId, Seq:args.Seq}
 	err, _ := sm.StartCommand(op)
 
 	reply.Err = err
 	if err == ErrWrongLeader{
 		reply.WrongLeader = true
-	}else{
-		reply.WrongLeader = false
+		return
 	}
+	reply.WrongLeader = false
+
 	if err == OK {
 		fmt.Println(sm.configs[len(sm.configs) - 1])
 	}
@@ -117,15 +157,16 @@ func (sm *ShardMaster) Join(args *JoinArgs, reply *JoinReply) {
 
 func (sm *ShardMaster) Leave(args *LeaveArgs, reply *LeaveReply) {
 	// Your code here.
-	op := Op{Opname:"Leave", GIDs:args.GIDs, Id:args.Id, Seq:args.Seq}
+	op := Op{Opname:"Leave", GIDs:args.GIDs, ClientId:args.ClientId, Seq:args.Seq}
 	err, _ := sm.StartCommand(op)
 
 	reply.Err = err
 	if err == ErrWrongLeader{
 		reply.WrongLeader = true
-	}else{
-		reply.WrongLeader = false
+		return
 	}
+	reply.WrongLeader = false
+
 	if err == OK {
 		fmt.Println(sm.configs[len(sm.configs) - 1])
 	}
@@ -133,15 +174,15 @@ func (sm *ShardMaster) Leave(args *LeaveArgs, reply *LeaveReply) {
 
 func (sm *ShardMaster) Move(args *MoveArgs, reply *MoveReply) {
 	// Your code here.
-	op := Op{Opname:"Move", Shard:args.Shard, GID:args.GID, Id:args.Id, Seq:args.Seq}
+	op := Op{Opname:"Move", Shard:args.Shard, GID:args.GID, ClientId:args.ClientId, Seq:args.Seq}
 	err, _ := sm.StartCommand(op)
 
 	reply.Err = err
 	if err == ErrWrongLeader{
 		reply.WrongLeader = true
-	}else{
-		reply.WrongLeader = false
+		return
 	}
+	reply.WrongLeader = false
 }
 
 func (sm *ShardMaster) Query(args *QueryArgs, reply *QueryReply) {
@@ -149,7 +190,7 @@ func (sm *ShardMaster) Query(args *QueryArgs, reply *QueryReply) {
 	//if args.Num == -1 || args.Num >= len(sm.configs){
 	//	args.Num = len(sm.configs) - 1
 	//}
-	op := Op{Opname:"Query", Num: args.Num, Id:args.Id, Seq:args.Seq}
+	op := Op{Opname:"Query", Num: args.Num, ClientId:args.ClientId, Seq:args.Seq}
 	//fmt.Println(sm.me, "op is ",op)
 	err, conf := sm.StartCommand(op)
 
@@ -157,9 +198,9 @@ func (sm *ShardMaster) Query(args *QueryArgs, reply *QueryReply) {
 	reply.Err = err
 	if err == ErrWrongLeader{
 		reply.WrongLeader = true
-	}else{
-		reply.WrongLeader = false
+		return
 	}
+	reply.WrongLeader = false
 	//fmt.Println(reply.Config)
 }
 
@@ -221,18 +262,11 @@ func LoadBalance(config *Config){
 }
 
 func (sm *ShardMaster) Apply(op Op){
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	if sm.DupCheck(op.Id, op.Seq){
-		newConfig := Config{}
+
+	if sm.DupCheck(op.ClientId, op.Seq){
+		newConfig := sm.MakeEmptyConfig()
+		sm.CopyConfig(&newConfig, &sm.configs[len(sm.configs) - 1])
 		newConfig.Num = sm.configs[len(sm.configs) - 1].Num + 1
-		for index, shard := range sm.configs[len(sm.configs)-1].Shards{
-			newConfig.Shards[index] = shard
-		}
-		newConfig.Groups = make(map[int][]string)
-		for key, value := range sm.configs[len(sm.configs)-1].Groups{
-			newConfig.Groups[key] = value
-		}
 		//fmt.Println(op.Opname)
 		switch op.Opname{
 		case "Join":
@@ -254,25 +288,23 @@ func (sm *ShardMaster) Apply(op Op){
 		case "Move":
 			newConfig.Shards[op.Shard] = op.GID
 		}
-		con := Config{}
+		con := sm.MakeEmptyConfig()
 		if op.Opname == "Query" {
 			num := op.Num
 			if op.Num == -1 || op.Num >= len(sm.configs) {
 				num = len(sm.configs) - 1
 			}
-			con = sm.configs[num]
+			sm.CopyConfig(&con, &sm.configs[num])
 		} else {
 			sm.configs = append(sm.configs, newConfig)
 		}
-		sm.DetectDup[op.Id] = Result{op.Opname, op.Id, op.Seq, con}
+		sm.detectDup[op.ClientId] = Result{op.Opname, op.ClientId, op.Seq, con}
 
 	}
 }
 
 func (sm *ShardMaster) Reply(op Op, index int){
-	sm.mu.Lock()
-	ch, ok := sm.result[index]
-	sm.mu.Unlock()
+	ch, ok := sm.chanresult[index]
 	if ok{
 		select{
 		case <- ch:
@@ -284,11 +316,21 @@ func (sm *ShardMaster) Reply(op Op, index int){
 
 func (sm *ShardMaster) doApplyOp(){
 	for{
+		//kill
+		sm.mu.Lock()
+		st := sm.state
+		sm.mu.Unlock()
+		if st == Killed {
+			return
+		}
+
 		msg := <-sm.applyCh
 		index := msg.CommandIndex
 		if op, ok := msg.Command.(Op); ok{
+			sm.mu.Lock()
 			sm.Apply(op)
 			sm.Reply(op, index)
+			sm.mu.Unlock()
 		}
 	}
 }
@@ -302,6 +344,9 @@ func (sm *ShardMaster) doApplyOp(){
 func (sm *ShardMaster) Kill() {
 	sm.rf.Kill()
 	// Your code here, if desired.
+	sm.mu.Lock()
+	sm.state = Killed
+	sm.mu.Unlock()
 }
 
 // needed by shardkv tester
@@ -318,18 +363,22 @@ func (sm *ShardMaster) Raft() *raft.Raft {
 func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister) *ShardMaster {
 	sm := new(ShardMaster)
 	sm.me = me
-
+	sm.state = Alive
 	sm.configs = make([]Config, 1)
-	sm.configs[0].Groups = map[int][]string{}
+	sm.configs[0].Num = 0
+	for i := 0; i < NShards; i++ {
+		sm.configs[0].Shards[i] = 0
+	}
+	sm.configs[0].Groups = make(map[int][]string)
 
 	labgob.Register(Op{})
+	sm.detectDup = make(map[int64]Result)
+	sm.chanresult = make(map[int]chan Op)
+
 	sm.applyCh = make(chan raft.ApplyMsg)
 	sm.rf = raft.Make(servers, me, persister, sm.applyCh)
 
 	// Your code here.
-	sm.DetectDup = make(map[int64]Result)
-	sm.result = make(map[int]chan Op)
-
 	go sm.doApplyOp()
 	return sm
 }
