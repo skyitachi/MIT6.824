@@ -142,7 +142,14 @@ func (sm *ShardMaster) StartCommand(op Op) (Err, Config){
 
 func (sm *ShardMaster) Join(args *JoinArgs, reply *JoinReply) {
 	// Your code here.
-	op := Op{Opname:"Join",Servers:args.Servers, ClientId:args.ClientId, Seq:args.Seq}
+	argser := make(map[int][]string)
+	for k, v := range args.Servers {
+		argser[k] = make([]string, len(v))
+		for i := 0; i < len(v); i++ {
+			argser[k][i] = v[i]
+		}
+	}
+	op := Op{Opname:"Join",Servers:argser, ClientId:args.ClientId, Seq:args.Seq}
 	err, _ := sm.StartCommand(op)
 
 	reply.Err = err
@@ -158,7 +165,11 @@ func (sm *ShardMaster) Join(args *JoinArgs, reply *JoinReply) {
 
 func (sm *ShardMaster) Leave(args *LeaveArgs, reply *LeaveReply) {
 	// Your code here.
-	op := Op{Opname:"Leave", GIDs:args.GIDs, ClientId:args.ClientId, Seq:args.Seq}
+	arggid := make([]int, len(args.GIDs))
+	for i := 0; i < len(args.GIDs); i++ {
+		arggid[i] = args.GIDs[i]
+	}
+	op := Op{Opname:"Leave", GIDs:arggid, ClientId:args.ClientId, Seq:args.Seq}
 	err, _ := sm.StartCommand(op)
 
 	reply.Err = err
