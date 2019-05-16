@@ -158,4 +158,3 @@ do
 done
 echo "${i} round" >> $1
 cat $1
-killall bash

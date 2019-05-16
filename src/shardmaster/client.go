@@ -8,12 +8,10 @@ import "labrpc"
 import "time"
 import "crypto/rand"
 import "math/big"
-import "sync"
 
 type Clerk struct {
 	servers []*labrpc.ClientEnd
 	// Your data here.
-	mu      sync.Mutex
 	id            int64
 	seq	          int
 }
@@ -38,7 +36,7 @@ func (ck *Clerk) Query(num int) Config {
 	args := &QueryArgs{}
 	// Your code here.
 	args.Num = num
-	args.Id = ck.id
+	args.ClientId = ck.id
 	args.Seq = ck.seq
 	ck.seq++
 	for {
@@ -50,7 +48,7 @@ func (ck *Clerk) Query(num int) Config {
 				return reply.Config
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -58,7 +56,7 @@ func (ck *Clerk) Join(servers map[int][]string) {
 	args := &JoinArgs{}
 	// Your code here.
 	args.Servers = servers
-	args.Id = ck.id
+	args.ClientId = ck.id
 	args.Seq = ck.seq
 	ck.seq++
 	for {
@@ -70,7 +68,7 @@ func (ck *Clerk) Join(servers map[int][]string) {
 				return
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -78,7 +76,7 @@ func (ck *Clerk) Leave(gids []int) {
 	args := &LeaveArgs{}
 	// Your code here.
 	args.GIDs = gids
-	args.Id = ck.id
+	args.ClientId = ck.id
 	args.Seq = ck.seq
 	ck.seq++
 	for {
@@ -90,7 +88,7 @@ func (ck *Clerk) Leave(gids []int) {
 				return
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -99,7 +97,7 @@ func (ck *Clerk) Move(shard int, gid int) {
 	// Your code here.
 	args.Shard = shard
 	args.GID = gid
-	args.Id = ck.id
+	args.ClientId = ck.id
 	args.Seq = ck.seq
 	ck.seq++
 	for {
@@ -111,6 +109,6 @@ func (ck *Clerk) Move(shard int, gid int) {
 				return
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
