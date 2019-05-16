@@ -47,6 +47,7 @@ type ShardKV struct {
 	lastconfig   shardmaster.Config
 	mck			 *shardmaster.Clerk
 	DetectDup 	 map[int64]int
+	
 	DetectConfigDup 	 map[int64]int
 	result 		 map[int]chan Op
 
