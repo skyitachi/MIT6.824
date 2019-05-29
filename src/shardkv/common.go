@@ -50,13 +50,14 @@ type GetReply struct {
 	Value       string
 }
 
-type MigrateArgs struct {
-	MapKV       map[string]string
+type PullArgs struct {
+	Shard       []int
 	ClientId    int64
 	Seq			int
 }
 
-type MigrateReply struct {
+type PullReply struct {
+	MapKV       map[string]string
 	WrongLeader bool
 	Err			Err
 }

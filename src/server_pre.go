@@ -1,4 +1,4 @@
-package shardkv
+//package shardkv
 
 
 // import "shardmaster"

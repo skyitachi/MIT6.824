@@ -9,10 +9,7 @@ package shardkv
 //
 
 import (
-	"fmt"
 	"labrpc"
-	//"mime/multipart"
-	"sync"
 )
 import "crypto/rand"
 import "math/big"
@@ -78,12 +75,12 @@ func MakeClerk(masters []*labrpc.ClientEnd, make_end func(string) *labrpc.Client
 func (ck *Clerk) Get(key string) string {
 	args := GetArgs{}
 	args.Key = key
-	args.Id = ck.id
+	args.ClientId = ck.id
 	args.Seq = ck.seq
 	ck.seq++
 	for {
 		// ask master for the latest configuration.
-		ck.config := ck.sm.Query(-1)
+		ck.config = ck.sm.Query(-1)
 
 		shard := key2shard(key)
 		gid := ck.config.Shards[shard]
@@ -122,13 +119,13 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 	args.Key = key
 	args.Value = value
 	args.Op = op
-	args.Id = ck.id
+	args.ClientId = ck.id
 	args.Seq = ck.seq
 	ck.seq++
 
 	for {
 		// ask master for the latest configuration.
-		ck.config := ck.sm.Query(-1)
+		ck.config = ck.sm.Query(-1)
 
 		shard := key2shard(key)
 		gid := ck.config.Shards[shard]
