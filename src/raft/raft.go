@@ -756,6 +756,18 @@ func (rf *Raft) SaveSnapshot(index int, kvdatabase map[string]string, detectDup 
 	//fmt.Println(rf.me, "save snapshot finish, firstindex is ", index, "term is ", rf.log[0].Term, "commitid is", rf.commitIndex, "apply id is: ",rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
 }
 
+func (rf *Raft) SaveSnapshotlab4(index int, data []byte) {
+	rf.mu.Lock()
+	defer rf.mu.Unlock()
+	FirstIndex := rf.log[0].Index
+	if index < FirstIndex {
+		return
+	}
+	rf.log = rf.log[index-FirstIndex:]
+	rf.persister.SaveStateAndSnapshot(rf.GetPersistByte(), data)
+	//fmt.Println(rf.me, "save snapshot finish, firstindex is ", index, "term is ", rf.log[0].Term, "commitid is", rf.commitIndex, "apply id is: ",rf.lastApplied, "last log index/term: ", rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term)
+}
+
 func (rf *Raft) GetStateSize() int {
 	return rf.persister.RaftStateSize()
 }

@@ -10,7 +10,7 @@ rm -rf $1
 for i in {0..10000}
 do
 
- tmp=`go test -run TestStaticShards -timeout 6s`
+ tmp=`go test -run TestSnapshot -timeout 11s`
     if [[ "${tmp}" =~ "FAIL" ]];
     then
         echo "${tmp}" > $1

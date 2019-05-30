@@ -3,6 +3,7 @@ package shardkv
 
 // import "shardmaster"
 import (
+	"bytes"
 	"fmt"
 	"labrpc"
 	"log"
@@ -540,10 +541,10 @@ func (kv *ShardKV) ApplyOp() {
 				//case Delop:
 
 				}
-
-				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate && index == kv.rf.GetCommitIndex() {
+				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate {
 					kv.SaveSnapshot(index)
 				}
+
 				kv.mu.Unlock()
 			}
 		} else {
@@ -651,12 +652,97 @@ func (kv *ShardKV) DoMigrate() {
 }
 
 func (kv *ShardKV) SaveSnapshot(index int) {
-	// TODO
+	DPrintf("group %d-%d savesnapshot at index %d, config num %d", kv.gid, kv.me, index, kv.myconfig[0].Num)
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	if ok := e.Encode(kv.kvdatabase); ok != nil  {
+		DPrintf("save kvdatabase fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.detectDup); ok != nil {
+		DPrintf("save detectDup fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.myconfig); ok != nil {
+		DPrintf("save myconfig fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.myshards); ok != nil {
+		DPrintf("save myshard fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.needrecv); ok != nil {
+		DPrintf("save needrecv fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.needsend); ok != nil {
+		DPrintf("save needsend fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.migrateDup); ok != nil {
+		DPrintf("save migratedup fail snapshot, %v", ok)
+	}
+	data := w.Bytes()
+	kv.rf.SaveSnapshotlab4(index, data)
 }
 
 func (kv *ShardKV) LoadSnapshot(snapshot []byte) {
 	// TODO
+	if snapshot == nil || len(snapshot) < 1 {
+		return
+	}
+	s := bytes.NewBuffer(snapshot)
+	d := labgob.NewDecoder(s)
+
+
+	var kvdb map[string]string
+	var dup map[int64]int
+	var cfg [2]shardmaster.Config
+	var shard [shardmaster.NShards]int
+	var recv map[int][]int
+	var send [shardmaster.NShards]int
+	var migdup map[int]int
+	//if d.Decode(&kvdb) != nil || d.Decode(&dup) != nil || d.Decode(&cfg) != nil || d.Decode(&shard) != nil || d.Decode(&recv) != nil || d.Decode(&send) != nil || d.Decode(&migdup) != nil{
+	//	fmt.Println("server ", kv.me, " readsnapshot wrong!")
+	//} else {
+	//	kv.mu.Lock()
+	//	kv.kvdatabase = kvdb
+	//	kv.detectDup = dup
+	//	kv.myconfig = cfg
+	//	kv.myshards = shard
+	//	kv.needrecv = recv
+	//	kv.needsend = send
+	//	kv.migrateDup = migdup
+	//	kv.mu.Unlock()
+	//	fmt.Println(kv.me, "loadsnapshot")
+	//}
+	if ok := d.Decode(&kvdb); ok != nil {
+		DPrintf("readsnapshot fail, kvdatabase %v", ok)
+	}
+	if ok := d.Decode(&dup); ok != nil {
+		DPrintf("readsnapshot fail, detectdup %v", ok)
+	}
+	if ok := d.Decode(&cfg); ok != nil {
+		DPrintf("readsnapshot fail, myconfig %v", ok)
+	}
+	if ok := d.Decode(&shard); ok != nil {
+		DPrintf("readsnapshot fail, myshards %v", ok)
+	}
+	if ok := d.Decode(&recv); ok != nil {
+		DPrintf("readsnapshot fail, needrecv %v", ok)
+	}
+	if ok := d.Decode(&send); ok != nil {
+		DPrintf("readsnapshot fail, needsend %v", ok)
+	}
+	if ok := d.Decode(&migdup); ok != nil {
+		DPrintf("readsnapshot fail, migratedup %v", ok)
+	}
+	kv.mu.Lock()
+	kv.kvdatabase = kvdb
+	kv.detectDup = dup
+	kv.myconfig = cfg
+	kv.myshards = shard
+	kv.needrecv = recv
+	kv.needsend = send
+	kv.migrateDup = migdup
+	kv.mu.Unlock()
+	fmt.Println(kv.me, "loadsnapshot")
 }
+
 
 
 //
@@ -718,7 +804,7 @@ func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister,
 	}
 	kv.migrateDup = make(map[int]int)
 
-	kv.LoadSnapshot(persister.ReadRaftState())
+	kv.LoadSnapshot(persister.ReadSnapshot())
 	kv.applyCh = make(chan raft.ApplyMsg)
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
 
