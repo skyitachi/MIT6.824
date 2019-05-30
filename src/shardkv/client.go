@@ -9,6 +9,7 @@ package shardkv
 //
 
 import (
+	"fmt"
 	"labrpc"
 )
 import "crypto/rand"
@@ -141,6 +142,7 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 					} else if reply.Err == ErrTimeout {
 						continue
 					} else if reply.Err == ErrWrongGroup {
+						fmt.Println("clerk put wrong group", gid)
 						break
 					}
 				}
