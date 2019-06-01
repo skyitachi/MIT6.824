@@ -14,7 +14,7 @@ import "raft"
 import "sync"
 import "labgob"
 
-const Debug = 1
+const Debug = 0
 
 func DPrintf(format string, a ...interface{}) (n int, err error) {
 	if Debug > 0 {
@@ -52,14 +52,10 @@ type Cfg struct {
 //migrate
 type Migrate struct {
 	MapKV  map[string]string
+	ShardDup    [shardmaster.NShards]map[int64]int
 
 	Num   int
 	Gid   int
-}
-
-//delete
-type Delop struct {
-	// TODO
 }
 
 const (
@@ -81,10 +77,16 @@ type ShardKV struct {
 	state        int
 
 	mck	         *shardmaster.Clerk
-	detectDup	 map[int64]int
+
+	detectDup	 [shardmaster.NShards]map[int64]int
+	pullDup	     map[int64]int
+	cfgDup		 map[int64]int
+	migrateDup   map[int]int
+	delDup		 map[int64]int
+
 	kvdatabase   map[string]string
 	chanresult   map[int]chan Op
-
+	chandel	     map[int]chan Op
 
 	myconfig     [2]shardmaster.Config //0 is now, 1 is new // 0 + need is current state
 	//when recv from other group and apply to my group, the shard is in my group
@@ -92,9 +94,8 @@ type ShardKV struct {
 	myshards	 [shardmaster.NShards]int //shard -> 0/1
 	needrecv     map[int][]int 			  // gid->[]shard
 	needsend     [shardmaster.NShards]int //shard->gid/-1
-
-	migrateDup   map[int]int
-
+	needdel		 map[int]map[int][]int //shard->gid/-1
+	delconfig    map[int]map[int][]string //gid->servers
 }
 
 func (kv *ShardKV) CheckSame(c1 Op, c2 Op) bool {
@@ -164,7 +165,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 		DPrintf("this group %d-%d is not leader\n", kv.gid, kv.me)
 		return ErrWrongLeader, ""
 	}
-
+	DPrintf("group %d-%d attempt to deal with op %d %d", kv.gid, kv.me, oop.ClientId, oop.Seq)
 	kv.mu.Lock()
 	//not responsible for
 	if !kv.CheckGroup(oop) {
@@ -173,7 +174,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 		return ErrWrongGroup, ""
 	}
 
-	if res, ok := kv.detectDup[oop.ClientId]; ok && res >= oop.Seq {
+	if res, ok := kv.detectDup[key2shard(oop.Key)][oop.ClientId]; ok && res >= oop.Seq {
 		resvalue := ""
 		if oop.Opname == "Get" {
 			resvalue = kv.kvdatabase[oop.Key]
@@ -189,6 +190,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 		DPrintf("after start, this group %d-%d is not leader\n", kv.gid, kv.me)
 		return ErrWrongLeader, ""
 	}
+	DPrintf("group %d-%d wait raft to apply %d %d", kv.gid, kv.me, oop.ClientId, oop.Seq)
 	//fmt.Println("index",index, "log op:", oop.Opname, "key: ", oop.Key, "value: ", oop.Value, "cid: ", oop.ClientId, "seq: ", oop.Seq)
 	ch := make(chan Op, 1)
 	kv.chanresult[index] = ch
@@ -205,7 +207,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 			if c.Error == ErrWrongGroup{
 				return ErrWrongGroup, ""
 			}
-			DPrintf("group %d reply to client: %d\n", kv.gid, index)
+			DPrintf("group %d reply to client: %d, seq %d\n", kv.gid, c.ClientId, c.Seq)
 			val := ""
 			if oop.Opname == "Get" {
 				val = c.Value
@@ -258,6 +260,9 @@ func (kv *ShardKV) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 	pullop := Op{"Pull", "", "", args.Shard, args.ClientId, args.Seq, OK}
 	reply.MapKV = make(map[string]string)
+	for i := 0; i < shardmaster.NShards; i++ {
+		reply.ShardDup[i] = make(map[int64]int)
+	}
 	reply.WrongLeader = false
 	reply.Err = OK
 
@@ -271,7 +276,7 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 
 	kv.mu.Lock()
 	//duplicate
-	if res, ok := kv.detectDup[pullop.ClientId]; ok && res >= pullop.Seq {
+	if res, ok := kv.pullDup[pullop.ClientId]; ok && res >= pullop.Seq {
 		for k, v := range kv.kvdatabase {
 			shard := key2shard(k)
 			for i := 0; i < len(pullop.Shard); i++ {
@@ -281,14 +286,19 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 				}
 			}
 		}
+		for i := 0; i < len(pullop.Shard); i++ {
+			for k, v := range kv.detectDup[pullop.Shard[i]] {
+				reply.ShardDup[pullop.Shard[i]][k] = v
+			}
+		}
 		kv.mu.Unlock()
 		return
 	}
 
 	//not the same config
 	if args.Seq != kv.myconfig[0].Num {
-		reply.WrongLeader = true
-		reply.Err = ErrWrongLeader
+		reply.WrongLeader = false
+		reply.Err = ErrNeedWait
 		kv.mu.Unlock()
 		return
 	}
@@ -298,8 +308,8 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 		if kv.myshards[pullop.Shard[i]] == 0 || kv.needsend[pullop.Shard[i]] == -1 {
 			//cannot serve
 			//maybe not in this group
-			reply.WrongLeader = true
-			reply.Err = ErrWrongLeader
+			reply.WrongLeader = false
+			reply.Err = ErrNeedWait
 			kv.mu.Unlock()
 			return
 		}
@@ -335,7 +345,85 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 					}
 				}
 			}
+			for i := 0; i < len(pullop.Shard); i++ {
+				for k, v := range kv.detectDup[pullop.Shard[i]] {
+					reply.ShardDup[pullop.Shard[i]][k] = v
+				}
+			}
 			kv.mu.Unlock()
+			return
+		} else {
+			reply.WrongLeader = true
+			reply.Err = ErrWrongLeader
+			return
+		}
+	case <-time.After(time.Millisecond * 2000):
+		DPrintf("timeout index %d\n", index)
+		reply.WrongLeader = true
+		reply.Err = ErrWrongLeader
+		return
+	}
+}
+
+func (kv *ShardKV) Del(args *DelArgs, reply *DelReply) {
+	delop := Op{"Del", "", "", args.Shard, args.ClientId, args.Seq, OK}
+	reply.WrongLeader = false
+	reply.Err = OK
+
+	//not leader
+	_, leader := kv.rf.GetState()
+	if leader == false {
+		reply.WrongLeader = true
+		reply.Err = ErrWrongLeader
+		return
+	}
+
+	kv.mu.Lock()
+	//duplicate
+	if res, ok := kv.delDup[delop.ClientId]; ok && res >= delop.Seq {
+		kv.mu.Unlock()
+		return
+	}
+
+	//delete future shard
+	if args.Seq > kv.myconfig[0].Num {
+		reply.WrongLeader = true
+		reply.Err = ErrWrongLeader
+		kv.mu.Unlock()
+		return
+	}
+
+	//be serving this shard, cannot delete
+	for i := 0; i < len(delop.Shard); i++ {
+		if kv.myshards[delop.Shard[i]] != 0 {
+			// this shard is still in this group
+			// cannot delete
+			// can return OK
+			kv.mu.Unlock()
+			return
+		}
+	}
+
+	index, _, isLeader := kv.rf.Start(delop)
+	if !isLeader {
+		reply.WrongLeader = true
+		reply.Err = ErrWrongLeader
+		kv.mu.Unlock()
+		return
+	}
+	//fmt.Println("index",index, "log op:", oop.Opname, "key: ", oop.Key, "value: ", oop.Value, "cid: ", oop.ClientId, "seq: ", oop.Seq)
+	ch := make(chan Op, 1)
+	kv.chandel[index] = ch
+	kv.mu.Unlock()
+	defer func() {
+		kv.mu.Lock()
+		delete(kv.chandel, index)
+		kv.mu.Unlock()
+	}()
+	//fmt.Println("unlock")
+	select {
+	case c := <-ch:
+		if kv.CheckSame(c, delop) {
 			return
 		} else {
 			reply.WrongLeader = true
@@ -364,13 +452,46 @@ func (kv *ShardKV) Kill() {
 	kv.mu.Unlock()
 }
 
-func (kv *ShardKV) DupCheck(cliid int64, seqid int) bool {
-	res, ok := kv.detectDup[cliid]
+func (kv *ShardKV) DupCheck(cliid int64, seqid int, key string) bool {
+	res, ok := kv.detectDup[key2shard(key)][cliid]
 	if ok {
 		return seqid > res
 	}
 	return true
 }
+
+func (kv *ShardKV) PullDupCheck(cliid int64, seqid int) bool {
+	res, ok := kv.pullDup[cliid]
+	if ok {
+		return seqid > res
+	}
+	return true
+}
+
+func (kv *ShardKV) CfgDupCheck(cliid int64, seqid int) bool {
+	res, ok := kv.cfgDup[cliid]
+	if ok {
+		return seqid > res
+	}
+	return true
+}
+
+func (kv *ShardKV) MigrateDupCheck(ggid int, num int) bool {
+	res, ok := kv.migrateDup[ggid]
+	if ok {
+		return num > res
+	}
+	return true
+}
+
+func (kv *ShardKV) DelDupCheck(cliid int64, seqid int) bool {
+	res, ok := kv.delDup[cliid]
+	if ok {
+		return seqid > res
+	}
+	return true
+}
+
 
 func (kv *ShardKV) CheckMigrateDone() bool {
 	for i := 0; i < shardmaster.NShards; i++ {
@@ -427,14 +548,6 @@ func (kv *ShardKV) SwitchConfig(newcfg Cfg) {
 	}
 }
 
-func (kv *ShardKV) MigrateDupCheck(ggid int, num int) bool {
-	res, ok := kv.migrateDup[ggid]
-	if ok {
-		return num > res
-	}
-	return true
-}
-
 func (kv *ShardKV) ApplyOp() {
 	for {
 		kv.mu.Lock()
@@ -455,7 +568,7 @@ func (kv *ShardKV) ApplyOp() {
 					err := OK
 					res := Op{}
 					if cmd.Opname == "Pull" {
-						if kv.DupCheck(cmd.ClientId, cmd.Seq) {
+						if kv.PullDupCheck(cmd.ClientId, cmd.Seq) {
 							//will not serve these shard
 							for i := 0; i < len(cmd.Shard); i++ {
 								kv.myshards[cmd.Shard[i]] = 0
@@ -467,17 +580,43 @@ func (kv *ShardKV) ApplyOp() {
 								kv.myconfig[0] = kv.myconfig[1]
 								DPrintf("Pull: group %d-%d successful switch to config %d", kv.gid, kv.me, kv.myconfig[0].Num)
 							}
-							kv.detectDup[cmd.ClientId] = cmd.Seq
+							kv.pullDup[cmd.ClientId] = cmd.Seq
 						}
 						sl := make([]int, 0)
 						res = Op{cmd.Opname, "","", sl, cmd.ClientId, cmd.Seq, OK}
 					} else if cmd.Opname == "Del" {
-						//TODO
+						//be serving this shard, cannot delete
+						flag := 0
+						for i := 0; i < len(cmd.Shard); i++ {
+							if kv.myshards[cmd.Shard[i]] != 0 {
+								// this shard is still in this group
+								// cannot delete
+								// can return OK
+								DPrintf("group %d-%d now is serving the shard %d, now config num %d, delop num %d", kv.gid, kv.me, cmd.Shard[i], kv.myconfig[0].Num, cmd.Seq)
+								flag = 1
+							}
+						}
+
+						if flag == 0 && kv.DelDupCheck(cmd.ClientId, cmd.Seq) {
+							for k, _:= range kv.kvdatabase {
+								for i := 0; i < len(cmd.Shard); i++ {
+									if key2shard(k) == cmd.Shard[i] {
+										delete(kv.kvdatabase, k)
+										break
+									}
+								}
+							}
+							DPrintf("group %d-%d delete %v successful, now shard is in %d", kv.gid, kv.me, cmd.Shard, cmd.ClientId)
+							kv.delDup[cmd.ClientId] = cmd.Seq
+						}
+						sl := make([]int, 0)
+						res = Op{cmd.Opname, "","", sl, cmd.ClientId, cmd.Seq, OK}
+
 					} else {
 						if !kv.CheckGroup(cmd) {
 							err = ErrWrongGroup
 						} else {
-							if kv.DupCheck(cmd.ClientId, cmd.Seq) {
+							if kv.DupCheck(cmd.ClientId, cmd.Seq, cmd.Key) {
 								switch cmd.Opname {
 								case "Put":
 									kv.kvdatabase[cmd.Key] = cmd.Value
@@ -488,7 +627,7 @@ func (kv *ShardKV) ApplyOp() {
 										kv.kvdatabase[cmd.Key] = cmd.Value
 									}
 								}
-								kv.detectDup[cmd.ClientId] = cmd.Seq
+								kv.detectDup[key2shard(cmd.Key)][cmd.ClientId] = cmd.Seq
 							}
 						}
 						sl := make([]int, 0)
@@ -508,7 +647,7 @@ func (kv *ShardKV) ApplyOp() {
 					}
 
 				case Cfg:
-					if kv.DupCheck(cmd.ClientId, cmd.Seq) {
+					if kv.CfgDupCheck(cmd.ClientId, cmd.Seq) {
 						kv.SwitchConfig(cmd)
 						if kv.CheckMigrateDone() {
 							//migrate done
@@ -516,7 +655,11 @@ func (kv *ShardKV) ApplyOp() {
 							kv.myconfig[0] = kv.myconfig[1]
 							DPrintf("Cfg: group %d-%d successful switch to config %d", kv.gid, kv.me, kv.myconfig[0].Num)
 						}
-						kv.detectDup[cmd.ClientId] = cmd.Seq
+						kv.cfgDup[cmd.ClientId] = cmd.Seq
+
+						if kv.maxraftstate != -1 {
+							kv.SaveSnapshot(index)
+						}
 					}
 					//switch successful
 					//new migrate list
@@ -526,9 +669,28 @@ func (kv *ShardKV) ApplyOp() {
 						for k, v := range cmd.MapKV {
 							kv.kvdatabase[k] = v
 						}
+						for i := 0; i < shardmaster.NShards; i++ {
+							for k, v := range cmd.ShardDup[i] {
+								kv.detectDup[i][k] = v
+							}
+						}
 						for i := 0; i < len(kv.needrecv[cmd.Gid]); i++ {
 							kv.myshards[kv.needrecv[cmd.Gid][i]] = 1
 						}
+						if _, ok := kv.needdel[kv.myconfig[0].Num]; !ok {
+							kv.needdel[kv.myconfig[0].Num] = make(map[int][]int)
+						}
+						if _, ok := kv.needdel[kv.myconfig[0].Num][cmd.Gid]; !ok {
+							kv.needdel[kv.myconfig[0].Num][cmd.Gid] = make([]int, 0)
+						}
+						for i := 0; i < len(kv.needrecv[cmd.Gid]); i++ {
+							kv.needdel[kv.myconfig[0].Num][cmd.Gid] = append(kv.needdel[kv.myconfig[0].Num][cmd.Gid], kv.needrecv[cmd.Gid][i])
+						}
+
+						if _, ok := kv.delconfig[kv.myconfig[0].Num]; !ok {
+							kv.delconfig[kv.myconfig[0].Num] = make(map[int][]string)
+						}
+						kv.delconfig[kv.myconfig[0].Num][cmd.Gid] = kv.myconfig[0].Groups[cmd.Gid]
 						delete(kv.needrecv, cmd.Gid)
 						if kv.CheckMigrateDone() {
 							//migrate done
@@ -537,8 +699,10 @@ func (kv *ShardKV) ApplyOp() {
 							DPrintf("Migrate: group %d-%d successful switch to config %d", kv.gid, kv.me, kv.myconfig[0].Num)
 						}
 						kv.migrateDup[cmd.Gid] = cmd.Num
+						if kv.maxraftstate != -1 {
+							kv.SaveSnapshot(index)
+						}
 					}
-				//case Delop:
 
 				}
 				if kv.maxraftstate != -1 && kv.rf.GetStateSize() >= kv.maxraftstate {
@@ -625,13 +789,24 @@ func (kv *ShardKV) DoMigrate() {
 							if ok && reply.WrongLeader == false {
 								//success pull data
 								//apply to my group
+								if reply.Err == ErrNeedWait {
+									// peer group still in old config
+									return
+								}
 								if _, isLeader := kv.rf.GetState(); isLeader {
 									DPrintf("group %d-%d get the pulled data from %d, will migrate", kv.gid, kv.me, ggid)
 									newmapkv := make(map[string]string)
 									for k, v := range reply.MapKV {
 										newmapkv[k] = v
 									}
-									mig := Migrate{newmapkv, arg.Seq, ggid}
+									var newdup [shardmaster.NShards]map[int64]int
+									for i := 0; i < shardmaster.NShards; i++ {
+										newdup[i] = make(map[int64]int)
+										for k, v := range reply.ShardDup[i] {
+											newdup[i][k] = v
+										}
+									}
+									mig := Migrate{newmapkv, newdup, arg.Seq, ggid}
 
 									kv.mu.Lock()
 									kv.rf.Start(mig)
@@ -651,6 +826,62 @@ func (kv *ShardKV) DoMigrate() {
 	}
 }
 
+func (kv *ShardKV) DoDelete() {
+	for {
+		kv.mu.Lock()
+		st := kv.state
+		kv.mu.Unlock()
+		if st == Killed {
+			return
+		}
+
+		if _, isLeader := kv.rf.GetState(); isLeader {
+			kv.mu.Lock()
+			for num, v := range kv.needdel {
+				if len(v) == 0 {
+					DPrintf("1. group %d-%d have finish delete work in config %d", kv.gid, kv.me, num)
+					delete(kv.needdel, num)
+					delete(kv.delconfig, num)
+					DPrintf("2. group %d-%d have finish delete work in config %d", kv.gid, kv.me, num)
+				}
+			}
+			for num, v := range kv.needdel {
+				for g, s := range v {
+					sl := make([]int, 0)
+					for i := 0; i < len(s); i++ {
+						sl = append(sl, s[i])
+					}
+					args := &DelArgs{sl, int64(kv.gid), num}
+					servers := kv.delconfig[num][g]
+					go func(ggid int, serv []string, arg *DelArgs) {
+						for {
+							for _, si := range serv {
+								reply := &DelReply{}
+								srv := kv.make_end(si)
+								DPrintf("group %d-%d will delete data %v in group %d", kv.gid, kv.me, arg.Shard, ggid)
+								ok := srv.Call("ShardKV.Del", arg, reply)
+
+								if ok && reply.WrongLeader == false {
+									kv.mu.Lock()
+									DPrintf("1. group %d-%d delete data successful in %d", kv.gid, kv.me, ggid)
+									delete(kv.needdel[num], ggid)
+									DPrintf("2. group %d-%d delete data successful in %d", kv.gid, kv.me, ggid)
+									kv.mu.Unlock()
+									return
+								}
+								time.Sleep(20 * time.Millisecond)
+							}
+						}
+
+					}(g, servers, args)
+				}
+			}
+			kv.mu.Unlock()
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 func (kv *ShardKV) SaveSnapshot(index int) {
 	DPrintf("group %d-%d savesnapshot at index %d, config num %d", kv.gid, kv.me, index, kv.myconfig[0].Num)
 	w := new(bytes.Buffer)
@@ -660,6 +891,15 @@ func (kv *ShardKV) SaveSnapshot(index int) {
 	}
 	if ok := e.Encode(kv.detectDup); ok != nil {
 		DPrintf("save detectDup fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.pullDup); ok != nil {
+		DPrintf("save pulldup fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.cfgDup); ok != nil {
+		DPrintf("save cfgdup fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.delDup); ok != nil {
+		DPrintf("save deldup fail snapshot, %v", ok)
 	}
 	if ok := e.Encode(kv.myconfig); ok != nil {
 		DPrintf("save myconfig fail snapshot, %v", ok)
@@ -673,8 +913,14 @@ func (kv *ShardKV) SaveSnapshot(index int) {
 	if ok := e.Encode(kv.needsend); ok != nil {
 		DPrintf("save needsend fail snapshot, %v", ok)
 	}
+	if ok := e.Encode(kv.needdel); ok != nil {
+		DPrintf("save needdel fail snapshot, %v", ok)
+	}
 	if ok := e.Encode(kv.migrateDup); ok != nil {
 		DPrintf("save migratedup fail snapshot, %v", ok)
+	}
+	if ok := e.Encode(kv.delconfig); ok != nil {
+		DPrintf("save delconfig fail snapshot, %v", ok)
 	}
 	data := w.Bytes()
 	kv.rf.SaveSnapshotlab4(index, data)
@@ -690,12 +936,17 @@ func (kv *ShardKV) LoadSnapshot(snapshot []byte) {
 
 
 	var kvdb map[string]string
-	var dup map[int64]int
+	var dup [shardmaster.NShards]map[int64]int
+	var pulldup map[int64]int
+	var cfgdup map[int64]int
+	var deldup map[int64]int
 	var cfg [2]shardmaster.Config
 	var shard [shardmaster.NShards]int
 	var recv map[int][]int
 	var send [shardmaster.NShards]int
+	var del map[int]map[int][]int
 	var migdup map[int]int
+	var delcfg map[int]map[int][]string
 	//if d.Decode(&kvdb) != nil || d.Decode(&dup) != nil || d.Decode(&cfg) != nil || d.Decode(&shard) != nil || d.Decode(&recv) != nil || d.Decode(&send) != nil || d.Decode(&migdup) != nil{
 	//	fmt.Println("server ", kv.me, " readsnapshot wrong!")
 	//} else {
@@ -716,6 +967,15 @@ func (kv *ShardKV) LoadSnapshot(snapshot []byte) {
 	if ok := d.Decode(&dup); ok != nil {
 		DPrintf("readsnapshot fail, detectdup %v", ok)
 	}
+	if ok := d.Decode(&pulldup); ok != nil {
+		DPrintf("readsnapshot fail, pulldup %v", ok)
+	}
+	if ok := d.Decode(&cfgdup); ok != nil {
+		DPrintf("readsnapshot fail, cfgdup %v", ok)
+	}
+	if ok := d.Decode(&deldup); ok != nil {
+		DPrintf("readsnapshot fail, cfgdup %v", ok)
+	}
 	if ok := d.Decode(&cfg); ok != nil {
 		DPrintf("readsnapshot fail, myconfig %v", ok)
 	}
@@ -728,17 +988,28 @@ func (kv *ShardKV) LoadSnapshot(snapshot []byte) {
 	if ok := d.Decode(&send); ok != nil {
 		DPrintf("readsnapshot fail, needsend %v", ok)
 	}
+	if ok := d.Decode(&del); ok != nil {
+		DPrintf("readsnapshot fail, needdel %v", ok)
+	}
 	if ok := d.Decode(&migdup); ok != nil {
 		DPrintf("readsnapshot fail, migratedup %v", ok)
+	}
+	if ok := d.Decode(&delcfg); ok != nil {
+		DPrintf("readsnapshot fail, delcfg %v", ok)
 	}
 	kv.mu.Lock()
 	kv.kvdatabase = kvdb
 	kv.detectDup = dup
+	kv.pullDup = pulldup
+	kv.cfgDup = cfgdup
+	kv.delDup = deldup
 	kv.myconfig = cfg
 	kv.myshards = shard
 	kv.needrecv = recv
 	kv.needsend = send
+	kv.needdel = del
 	kv.migrateDup = migdup
+	kv.delconfig = delcfg
 	kv.mu.Unlock()
 	fmt.Println(kv.me, "loadsnapshot")
 }
@@ -791,9 +1062,15 @@ func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister,
 	// Use something like this to talk to the shardmaster:
 	kv.mck = shardmaster.MakeClerk(kv.masters)
 
-	kv.detectDup = make(map[int64]int)
+	for i := 0; i < shardmaster.NShards; i++ {
+		kv.detectDup[i] = make(map[int64]int)
+	}
+	kv.pullDup = make(map[int64]int)
+	kv.cfgDup = make(map[int64]int)
+	kv.delDup = make(map[int64]int)
 	kv.kvdatabase = make(map[string]string)
 	kv.chanresult = make(map[int]chan Op)
+	kv.chandel = make(map[int]chan Op)
 
 	kv.myconfig[0] = kv.MakeEmptyConfig()
 	kv.myconfig[1] = kv.MakeEmptyConfig()
@@ -802,6 +1079,8 @@ func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister,
 		kv.myshards[i] = 0
 		kv.needsend[i] = -1
 	}
+	kv.needdel = make(map[int]map[int][]int)
+	kv.delconfig = make(map[int]map[int][]string)
 	kv.migrateDup = make(map[int]int)
 
 	kv.LoadSnapshot(persister.ReadSnapshot())
@@ -811,6 +1090,6 @@ func StartServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persister,
 	go kv.ApplyOp()
 	go kv.UpdateConfig()
 	go kv.DoMigrate()
-
+	go kv.DoDelete()
 	return kv
 }
