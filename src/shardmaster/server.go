@@ -99,9 +99,15 @@ func (sm *ShardMaster) CheckSame(c1 Op, c2 Op) bool {
 func (sm *ShardMaster) StartCommand(op Op) (Err, Config){
 	sm.mu.Lock()
 	if !sm.DupCheck(op.ClientId, op.Seq){
-		res, _ := sm.detectDup[op.ClientId]
 		resCig := sm.MakeEmptyConfig()
-		sm.CopyConfig(&resCig, &res.config)
+		if op.Opname == "Query" {
+			num := op.Num
+			if op.Num <0 || op.Num >= len(sm.configs) {
+				num = len(sm.configs) - 1
+			}
+			res := sm.configs[num]
+			sm.CopyConfig(&resCig, &res)
+		}
 		sm.mu.Unlock()
 		return OK, resCig
 	}

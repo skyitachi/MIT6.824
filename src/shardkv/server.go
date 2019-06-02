@@ -14,7 +14,7 @@ import "raft"
 import "sync"
 import "labgob"
 
-const Debug = 0
+const Debug = 1
 
 func DPrintf(format string, a ...interface{}) (n int, err error) {
 	if Debug > 0 {
@@ -162,7 +162,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 	//not leader
 	_, leader := kv.rf.GetState()
 	if leader == false {
-		DPrintf("this group %d-%d is not leader\n", kv.gid, kv.me)
+		DPrintf("this group %d-%d is not leader", kv.gid, kv.me)
 		return ErrWrongLeader, ""
 	}
 	DPrintf("group %d-%d attempt to deal with op %d %d", kv.gid, kv.me, oop.ClientId, oop.Seq)
@@ -170,7 +170,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 	//not responsible for
 	if !kv.CheckGroup(oop) {
 		kv.mu.Unlock()
-		DPrintf("this group %d-%d not responsible for the key %s, shard is %d, my shards is %v\n", kv.gid, kv.me, oop.Key, key2shard(oop.Key), kv.myshards)
+		DPrintf("this group %d-%d not responsible for the key %s, shard is %d, my shards is %v", kv.gid, kv.me, oop.Key, key2shard(oop.Key), kv.myshards)
 		return ErrWrongGroup, ""
 	}
 
@@ -180,14 +180,14 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 			resvalue = kv.kvdatabase[oop.Key]
 		}
 		kv.mu.Unlock()
-		DPrintf("this group %d-%d duplicate for the key %s\n", kv.gid, kv.me, oop.Key)
+		DPrintf("this group %d-%d duplicate for the key %s", kv.gid, kv.me, oop.Key)
 		return OK, resvalue
 	}
 
 	index, _, isLeader := kv.rf.Start(oop)
 	if !isLeader {
 		kv.mu.Unlock()
-		DPrintf("after start, this group %d-%d is not leader\n", kv.gid, kv.me)
+		DPrintf("after start, this group %d-%d is not leader", kv.gid, kv.me)
 		return ErrWrongLeader, ""
 	}
 	DPrintf("group %d-%d wait raft to apply %d %d", kv.gid, kv.me, oop.ClientId, oop.Seq)
@@ -207,7 +207,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 			if c.Error == ErrWrongGroup{
 				return ErrWrongGroup, ""
 			}
-			DPrintf("group %d reply to client: %d, seq %d\n", kv.gid, c.ClientId, c.Seq)
+			DPrintf("group %d reply to client: %d, seq %d", kv.gid, c.ClientId, c.Seq)
 			val := ""
 			if oop.Opname == "Get" {
 				val = c.Value
@@ -217,7 +217,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 			return ErrWrongLeader, ""
 		}
 	case <-time.After(time.Millisecond * 2000):
-		DPrintf("group %d timeout index %d\n",kv.gid, index)
+		DPrintf("group %d timeout index %d",kv.gid, index)
 		return ErrWrongLeader, ""
 	}
 }
@@ -227,7 +227,7 @@ func (kv *ShardKV) StartCommand(oop Op) (Err, string) {
 func (kv *ShardKV) Get(args *GetArgs, reply *GetReply) {
 	// Your code here.
 	sl := make([]int, 0)
-	fmt.Println("Get", args.Key, args.ClientId, args.Seq, kv.me)
+	DPrintf("Get from client %d %d, key %s, to group %d-%d", args.ClientId, args.Seq, args.Key, kv.gid, kv.me)
 	op := Op{"Get", args.Key, "",sl, args.ClientId, args.Seq, OK}
 	err, val := kv.StartCommand(op)
 
@@ -245,7 +245,7 @@ func (kv *ShardKV) Get(args *GetArgs, reply *GetReply) {
 func (kv *ShardKV) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	// Your code here.
 	sl := make([]int, 0)
-	fmt.Println(args.Op, args.Key, args.Value,args.ClientId, args.Seq, kv.gid, kv.me)
+	DPrintf("%s from client %d %d, key %s, value %s, to group %d-%d", args.Op, args.ClientId, args.Seq, args.Key, args.Value, kv.gid, kv.me)
 	op := Op{args.Op, args.Key, args.Value, sl, args.ClientId, args.Seq, OK}
 	err, _ := kv.StartCommand(op)
 	reply.Err = err
@@ -269,6 +269,7 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 	//not leader
 	_, leader := kv.rf.GetState()
 	if leader == false {
+		DPrintf("pullop: group %d-%d is not leader, shard %v, cli %d, config %d", kv.gid, kv.me, args.Shard, args.ClientId, args.Seq)
 		reply.WrongLeader = true
 		reply.Err = ErrWrongLeader
 		return
@@ -291,6 +292,7 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 				reply.ShardDup[pullop.Shard[i]][k] = v
 			}
 		}
+		DPrintf("pullop: group %d-%d duplicate, shard %v, cli %d, config %d", kv.gid, kv.me, args.Shard, args.ClientId, args.Seq)
 		kv.mu.Unlock()
 		return
 	}
@@ -299,6 +301,7 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 	if args.Seq != kv.myconfig[0].Num {
 		reply.WrongLeader = false
 		reply.Err = ErrNeedWait
+		DPrintf("pullop: group %d-%d not the same config, myconfig %d, shard %v, cli %d, config %d", kv.gid, kv.me, kv.myconfig[0].Num,args.Shard, args.ClientId, args.Seq)
 		kv.mu.Unlock()
 		return
 	}
@@ -310,6 +313,7 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 			//maybe not in this group
 			reply.WrongLeader = false
 			reply.Err = ErrNeedWait
+			DPrintf("pullop: group %d-%d is not serve shard %v, cli %d, config %d, myshard %v, mysend %v", kv.gid, kv.me, args.Shard, args.ClientId, args.Seq, kv.myshards, kv.needsend)
 			kv.mu.Unlock()
 			return
 		}
@@ -350,6 +354,7 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 					reply.ShardDup[pullop.Shard[i]][k] = v
 				}
 			}
+			DPrintf("pullop: group %d-%d pull successful, shard %v, cli %d, config %d", kv.gid, kv.me, args.Shard, args.ClientId, args.Seq)
 			kv.mu.Unlock()
 			return
 		} else {
@@ -358,7 +363,7 @@ func (kv *ShardKV) Pull(args *PullArgs, reply *PullReply) {
 			return
 		}
 	case <-time.After(time.Millisecond * 2000):
-		DPrintf("timeout index %d\n", index)
+		DPrintf("timeout index %d", index)
 		reply.WrongLeader = true
 		reply.Err = ErrWrongLeader
 		return
@@ -375,12 +380,14 @@ func (kv *ShardKV) Del(args *DelArgs, reply *DelReply) {
 	if leader == false {
 		reply.WrongLeader = true
 		reply.Err = ErrWrongLeader
+		DPrintf("delop: group %d-%d is not leader, shard %v, cli %d, config %d", kv.gid, kv.me, args.Shard, args.ClientId, args.Seq)
 		return
 	}
 
 	kv.mu.Lock()
 	//duplicate
 	if res, ok := kv.delDup[delop.ClientId]; ok && res >= delop.Seq {
+		DPrintf("delop: group %d-%d duplicate, has delete, shard %v, cli %d, config %d", kv.gid, kv.me, args.Shard, args.ClientId, args.Seq)
 		kv.mu.Unlock()
 		return
 	}
@@ -389,20 +396,22 @@ func (kv *ShardKV) Del(args *DelArgs, reply *DelReply) {
 	if args.Seq > kv.myconfig[0].Num {
 		reply.WrongLeader = true
 		reply.Err = ErrWrongLeader
+		DPrintf("delop: group %d-%d config is old %d, has delete, shard %v, cli %d, config %d", kv.gid, kv.me, kv.myconfig[0].Num, args.Shard, args.ClientId, args.Seq)
 		kv.mu.Unlock()
 		return
 	}
 
-	//be serving this shard, cannot delete
-	for i := 0; i < len(delop.Shard); i++ {
-		if kv.myshards[delop.Shard[i]] != 0 {
-			// this shard is still in this group
-			// cannot delete
-			// can return OK
-			kv.mu.Unlock()
-			return
-		}
-	}
+	////be serving this shard, cannot delete
+	//for i := 0; i < len(delop.Shard); i++ {
+	//	if kv.myshards[delop.Shard[i]] != 0 {
+	//		// this shard is still in this group
+	//		// cannot delete
+	//		// can return OK
+	//		DPrintf("delop: group %d-%d duplicate, has delete, shard %v, cli %d, config %d", kv.gid, kv.me, args.Shard, args.ClientId, args.Seq)
+	//		kv.mu.Unlock()
+	//		return
+	//	}
+	//}
 
 	index, _, isLeader := kv.rf.Start(delop)
 	if !isLeader {
@@ -424,6 +433,7 @@ func (kv *ShardKV) Del(args *DelArgs, reply *DelReply) {
 	select {
 	case c := <-ch:
 		if kv.CheckSame(c, delop) {
+			DPrintf("delop: group %d-%d delete successful, shard %v, cli %d, config %d", kv.gid, kv.me, args.Shard, args.ClientId, args.Seq)
 			return
 		} else {
 			reply.WrongLeader = true
@@ -431,7 +441,7 @@ func (kv *ShardKV) Del(args *DelArgs, reply *DelReply) {
 			return
 		}
 	case <-time.After(time.Millisecond * 2000):
-		DPrintf("timeout index %d\n", index)
+		DPrintf("timeout index %d", index)
 		reply.WrongLeader = true
 		reply.Err = ErrWrongLeader
 		return
@@ -586,21 +596,23 @@ func (kv *ShardKV) ApplyOp() {
 						res = Op{cmd.Opname, "","", sl, cmd.ClientId, cmd.Seq, OK}
 					} else if cmd.Opname == "Del" {
 						//be serving this shard, cannot delete
-						flag := 0
-						for i := 0; i < len(cmd.Shard); i++ {
-							if kv.myshards[cmd.Shard[i]] != 0 {
-								// this shard is still in this group
-								// cannot delete
-								// can return OK
-								DPrintf("group %d-%d now is serving the shard %d, now config num %d, delop num %d", kv.gid, kv.me, cmd.Shard[i], kv.myconfig[0].Num, cmd.Seq)
-								flag = 1
-							}
-						}
+						//flag := 0
+						//for i := 0; i < len(cmd.Shard); i++ {
+						//	if kv.myshards[cmd.Shard[i]] != 0 {
+						//		// this shard is still in this group
+						//		// cannot delete
+						//		// can return OK
+						//		DPrintf("group %d-%d now is serving the shard %d, now config num %d, delop num %d", kv.gid, kv.me, cmd.Shard[i], kv.myconfig[0].Num, cmd.Seq)
+						//		flag = 1
+						//	}
+						//}
 
-						if flag == 0 && kv.DelDupCheck(cmd.ClientId, cmd.Seq) {
+						//if flag == 0 && kv.DelDupCheck(cmd.ClientId, cmd.Seq) {
+						if kv.DelDupCheck(cmd.ClientId, cmd.Seq) {
 							for k, _:= range kv.kvdatabase {
 								for i := 0; i < len(cmd.Shard); i++ {
-									if key2shard(k) == cmd.Shard[i] {
+									if key2shard(k) == cmd.Shard[i] && kv.myshards[cmd.Shard[i]] == 0{
+										//this shard is not serving, can delete
 										delete(kv.kvdatabase, k)
 										break
 									}
@@ -657,9 +669,9 @@ func (kv *ShardKV) ApplyOp() {
 						}
 						kv.cfgDup[cmd.ClientId] = cmd.Seq
 
-						if kv.maxraftstate != -1 {
-							kv.SaveSnapshot(index)
-						}
+						//if kv.maxraftstate != -1 {
+						//	kv.SaveSnapshot(index)
+						//}
 					}
 					//switch successful
 					//new migrate list
