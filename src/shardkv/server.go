@@ -8,6 +8,7 @@ import (
 	"labrpc"
 	"log"
 	"shardmaster"
+	"sort"
 	"time"
 )
 import "raft"
@@ -751,7 +752,7 @@ func (kv *ShardKV) UpdateConfig() {
 		kv.mu.Unlock()
 
 		config := kv.mck.Query(cur+1)
-		DPrintf("group %d-%d now config num %d, new config num %d", kv.gid, kv.me, kv.myconfig[0].Num, config.Num)
+		DPrintf("group %d-%d now config num %d, get new config num %d, now shard %v, new shard %v", kv.gid, kv.me, kv.myconfig[0].Num, config.Num, kv.myconfig[0].Shards, config.Shards)
 		kv.mu.Lock()
 		if config.Num == kv.myconfig[0].Num + 1 {
 			//next config
@@ -849,7 +850,13 @@ func (kv *ShardKV) DoDelete() {
 
 		if _, isLeader := kv.rf.GetState(); isLeader {
 			kv.mu.Lock()
-			for num, v := range kv.needdel {
+			grp := make([]int, 0)
+			for num := range kv.needdel {
+				grp = append(grp, num)
+			}
+			sort.Ints(grp)
+			for _, num := range grp {
+				v := kv.needdel[num]
 				if len(v) == 0 {
 					DPrintf("1. group %d-%d have finish delete work in config %d", kv.gid, kv.me, num)
 					delete(kv.needdel, num)
@@ -857,7 +864,8 @@ func (kv *ShardKV) DoDelete() {
 					DPrintf("2. group %d-%d have finish delete work in config %d", kv.gid, kv.me, num)
 				}
 			}
-			for num, v := range kv.needdel {
+			for _, num := range grp {
+				v := kv.needdel[num]
 				for g, s := range v {
 					sl := make([]int, 0)
 					for i := 0; i < len(s); i++ {
@@ -1023,7 +1031,7 @@ func (kv *ShardKV) LoadSnapshot(snapshot []byte) {
 	kv.migrateDup = migdup
 	kv.delconfig = delcfg
 	kv.mu.Unlock()
-	fmt.Println(kv.me, "loadsnapshot")
+	DPrintf("group %d-%d loadsnapshot", kv.gid, kv.me)
 }
 
 

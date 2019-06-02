@@ -2,6 +2,7 @@ package shardmaster
 
 import (
 	"raft"
+	"sort"
 )
 import "labrpc"
 import "sync"
@@ -53,7 +54,7 @@ type Op struct {
 
 func (sm *ShardMaster) MakeEmptyConfig() Config{
 	res := Config{}
-	res.Num = 0;
+	res.Num = 0
 	for i := 0; i < NShards; i++ {
 		res.Shards[i] = 0
 	}
@@ -107,6 +108,7 @@ func (sm *ShardMaster) StartCommand(op Op) (Err, Config){
 			}
 			res := sm.configs[num]
 			sm.CopyConfig(&resCig, &res)
+			fmt.Println(sm.me, "query duplicate, num", num, ", shard config", resCig.Shards,", client ", op.ClientId,", seq", op.Seq)
 		}
 		sm.mu.Unlock()
 		return OK, resCig
@@ -223,13 +225,18 @@ func (sm *ShardMaster) Query(args *QueryArgs, reply *QueryReply) {
 
 func LoadBalance(config *Config){
 	num := len(config.Groups)
-	if num == 0{
+	grp := make([]int, 0)
+	if num == 0 {
 		return
 	}
+	for i := range config.Groups {
+		grp = append(grp, i)
+	}
+	sort.Ints(grp)
 	every := NShards / num
 	mod := NShards % num
 	var a int
-	for k, _ := range config.Groups{
+	for _, k := range grp{
 		a = k
 		break
 	}
@@ -242,7 +249,7 @@ func LoadBalance(config *Config){
 			count[config.Shards[i]]++
 		}
 	}
-	for i := range config.Groups{
+	for _, i := range grp{
 		//fmt.Println(i,count[i])
 		for count[i] < every{
 			for j := range config.Shards{
@@ -258,12 +265,12 @@ func LoadBalance(config *Config){
 	//for i := range config.Shards{
 	//	fmt.Println(i,config.Shards[i], count[config.Shards[i]])
 	//}
-	for i := range config.Groups{
+	for _, i := range grp{
 		if count[i] >= every + 1{
 			mod--
 		}
 	}
-	for i := range config.Groups{
+	for _, i := range grp{
 		if mod > 0 && count[i] < every + 1{
 			for j := range config.Shards{
 				if count[config.Shards[j]] > every + 1{
@@ -344,9 +351,11 @@ func (sm *ShardMaster) doApplyOp(){
 						num = len(sm.configs) - 1
 					}
 					sm.CopyConfig(&con, &sm.configs[num])
+					fmt.Println(sm.me, "query num", num,", config is", con.Shards,", client", op.ClientId," seq", op.Seq)
 					//con = sm.configs[num]
 				} else {
 					sm.configs = append(sm.configs, newConfig)
+					fmt.Println(sm.me, "op", op.Opname,", new config is", newConfig.Shards)
 				}
 				sm.detectDup[op.ClientId] = Result{op.Opname, op.ClientId, op.Seq, con}
 				
