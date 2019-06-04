@@ -592,6 +592,9 @@ func (kv *ShardKV) ApplyOp() {
 								DPrintf("Pull: group %d-%d successful switch to config %d", kv.gid, kv.me, kv.myconfig[0].Num)
 							}
 							kv.pullDup[cmd.ClientId] = cmd.Seq
+							if kv.maxraftstate != -1 {
+								kv.SaveSnapshot(index)
+							}
 						}
 						sl := make([]int, 0)
 						res = Op{cmd.Opname, "","", sl, cmd.ClientId, cmd.Seq, OK}
@@ -621,6 +624,9 @@ func (kv *ShardKV) ApplyOp() {
 							}
 							DPrintf("group %d-%d delete %v successful, now shard is in %d", kv.gid, kv.me, cmd.Shard, cmd.ClientId)
 							kv.delDup[cmd.ClientId] = cmd.Seq
+							if kv.maxraftstate != -1 {
+								kv.SaveSnapshot(index)
+							}
 						}
 						sl := make([]int, 0)
 						res = Op{cmd.Opname, "","", sl, cmd.ClientId, cmd.Seq, OK}
@@ -670,9 +676,9 @@ func (kv *ShardKV) ApplyOp() {
 						}
 						kv.cfgDup[cmd.ClientId] = cmd.Seq
 
-						//if kv.maxraftstate != -1 {
-						//	kv.SaveSnapshot(index)
-						//}
+						if kv.maxraftstate != -1 {
+							kv.SaveSnapshot(index)
+						}
 					}
 					//switch successful
 					//new migrate list

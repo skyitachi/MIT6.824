@@ -10,7 +10,7 @@ rm -rf $1
 for i in {0..10000}
 do
 
- tmp=`go test -run TestUnreliable3 -timeout 11s`
+ tmp=`go test -run TestChallenge1Concurrent`
     if [[ "${tmp}" =~ "FAIL" ]];
     then
         echo "${tmp}" > $1
