@@ -308,6 +308,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	reply.Term = rf.currentTerm
 	reply.VoteGranted = false
 	if args.Term >= rf.currentTerm {
+		// 同一个term，同一个candidate多个request vote请求 ，应该都vote true?
 		if rf.votedFor == -1 || rf.votedFor == args.CandidateId {
 			if args.LastLogTerm > rf.log[rf.GetLen()].Term || (args.LastLogTerm == rf.log[rf.GetLen()].Term && args.LastLogIndex >= rf.log[rf.GetLen()].Index) {
 				rf.chanvoteGranted <- 1
@@ -554,6 +555,7 @@ func (rf *Raft) allRequestVote() {
 	//fmt.Println(rf.me, "becomes candidate, term is", rf.currentTerm)
 	count := 1
 	rf.mu.Lock()
+	DPrintf("[raft %d] [term %d] are voting", rf.me, rf.currentTerm)
 	args := &RequestVoteArgs{rf.currentTerm, rf.me, rf.log[rf.GetLen()].Index, rf.log[rf.GetLen()].Term}
 	rf.mu.Unlock()
 	for i := 0; i < len(rf.peers); i++ {
@@ -802,6 +804,7 @@ func (rf *Raft) doStateChange() {
 				rf.mu.Unlock()
 			case <-time.After(time.Millisecond * time.Duration(250+rand.Int31n(500))): //election timeout
 				rf.mu.Lock()
+				DPrintf("[raft %d] [term %d]: follower timeout", rf.me, rf.currentTerm)
 				if len(rf.chanvoteGranted) == 0 && len(rf.chanAppendEntries) == 0 {
 					rf.state = Candidate
 					rf.currentTerm += 1 //every election start term += 1
@@ -816,8 +819,10 @@ func (rf *Raft) doStateChange() {
 			select {
 			case <-time.After(time.Millisecond * time.Duration(250+rand.Int31n(500))): //election timeout and start a new election
 				rf.mu.Lock()
+				DPrintf("[raft %d] [term %d]: candidate timeout ", rf.me, rf.currentTerm)
 				if len(rf.chanvoteGranted) == 0 && len(rf.chanAppendEntries) == 0 {
 					rf.state = Candidate
+					// term是一直增加的
 					rf.currentTerm += 1 //every election start term += 1
 					rf.votedFor = rf.me
 					rf.persist()

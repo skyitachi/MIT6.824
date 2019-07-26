@@ -47,6 +47,29 @@ func TestInitialElection2A(t *testing.T) {
 	cfg.end()
 }
 
+func TestFailedLeader(t *testing.T) {
+  servers := 3
+	cfg := make_config(t, servers, false)
+	defer cfg.cleanup()
+
+  cfg.disconnect(0)
+
+  leader1 := cfg.checkOneLeader()
+
+  fmt.Println("current leader: ", leader1)
+
+  time.Sleep(5 * RaftElectionTimeout)
+
+  cfg.connect(0)
+
+  leader2 := cfg.checkOneLeader()
+
+  fmt.Println("current leader: ", leader2)
+
+
+
+}
+
 func TestReElection2A(t *testing.T) {
 	servers := 3
 	cfg := make_config(t, servers, false)
